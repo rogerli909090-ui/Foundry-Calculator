@@ -2966,7 +2966,6 @@ const stats = calculatestats()
   let min = getMinStatValue()
   let quartiles = calculateQuartiles()
 
-
   let expr = latex
     .replace(/\\div/g, '/')
     .replace(/\\operatorname\{Ran\}#/g, random)
@@ -3011,8 +3010,26 @@ const stats = calculatestats()
     .replace(/\\sin/g, 'sin')
     .replace(/\\cos/g, 'cos')
     .replace(/\\tan/g, 'tan')
-    .replace(/\\tan(\s*)\(?(\s*)90(\s*)\)?/g, '1/0')
-    .replace(/tan(\s*)\(?(\s*)90(\s*)\)?/g, '1/0')
+
+  const node = math.parse(expr);
+
+  const transformed = node.transform(function (node) {
+    if (node.type === 'FunctionNode' && node.fn.name === 'tan') {
+      const arg = node.args[0];
+      const evaluated = math.evaluate(arg.toString());
+if (angleMode === 'radians'){
+      if (math.equal(evaluated, math.pi / 2)) {
+        return math.parse('1/0');
+      }} else {
+        if (evaluated === 90) {
+        return math.parse('1/0');}
+      }
+    }
+    return node;
+  });
+
+  expr = transformed.toString() // Outputs: 1/0 + 1/0 + 1/0
+
     .replace(/\\arcsin/g, 'asin')
     .replace(/\\arccos/g, 'acos')
     .replace(/\\arctan/g, 'atan')
