@@ -1,0 +1,3222 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MathQuill Calculator with Logs & Trig</title>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.css" />
+<script src="https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjs@11.11.0/lib/browser/math.min.js"></script>
+
+  <script id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
+
+  <div id="stats-overlay">
+<div id="stats-table-container" style="max-height: 150px; overflow-y: auto; margin-left: 40px; margin-top:70px;">
+  <table id="stats-table" class="hidden">
+    <thead>
+      <tr>
+        <th>X</th>
+        <th>FREQ</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="stats-tbody">
+      <tr>
+        <td><input id = "valueinputs" readonly="true" type="text" inputmode="numeric" pattern="[0-9]*" class="stat-input"></td>
+        <td><input id = "statinputs" readonly="true" type="text" inputmode="numeric" pattern="[0-9]*" class="freq-input" value="1"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</div>
+
+  <style>
+
+button {
+  touch-action: none;
+  user-select: none;
+}
+
+    :root {
+      --site-brightness: 1;
+        touch-action: none;
+        height: 100% 
+    }
+    html {
+      filter: brightness(var(--site-brightness));
+      transition: filter 0.3s;
+    }
+
+    html, body {
+    user-select: none;
+      zoom: 1.4;
+      font-family: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .fade-row {
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .fade-row.show {
+      opacity: 1;
+    }
+    #stats-overlay {
+      display: none;
+      position: fixed;
+      top: 40px; left: 0; right: 0; bottom: 0;
+      width: 100vw;
+      height: 300px;
+      z-index: -1;
+    }
+    body.stats-mode #stats-overlay {
+      display: block;
+    }
+    #stats-table,
+    .stat-input,
+    .freq-input {
+      position: relative;
+      z-index: 9000; /* Ensure inputs are above the overlay */
+      width: 200px;      /* or any width you prefer */
+      font-size: 18px;   /* match your table font size */
+      padding: 4px;
+      box-sizing: border-box;
+      border-radius: 5px;
+      border: 0px solid #ccc;
+      font-family: inherit; /* Use the same font as the table */
+      outline: none; /* Remove focus outline */
+    }
+    body.dark-mode .stat-input,
+    body.dark-mode .freq-input {
+      background-color:#fff8c8;
+      color: #002952;
+    }
+
+    body.light-mode .stat-input,
+    body.light-mode .freq-input {
+      background-color:#505050;
+      color: bisque;
+    }
+
+    .mathquill-editable {
+    outline: none !important; /* Removes default focus glow */
+    box-shadow: none !important; /* Removes any extra highlights */
+    }
+    /*Themes*/
+    body.dark-mode {
+      background-color: #152432;
+      color: #fff8c8;
+    }
+
+    body.light-mode {
+      background-color:rgb(233, 221, 206);
+      color: #353535;
+    }
+    #result{
+      position: fixed;
+      margin-left: 40px;
+      margin-top: 20px;
+      opacity: 0;
+      transform: scale(1.04);
+
+    }
+    #math-field.dark-mode,
+    #result.dark-mode {
+      color: #fff8c8;
+      border-color: #666;
+    }
+    #math-field.light-mode,
+    #result.light-mode {
+      color: #505050;
+      border-color: #666;
+    }
+
+    #fade-overlay.dark-mode {
+      background-color: #152432;
+    }
+    #fade-overlay.light-mode {
+      background-color:rgb(233, 221, 206);
+    }
+    #fullScreenMenu.dark-mode {
+      background-color: #152432;
+      color: #fff8c8;
+    }
+
+    body.dark-mode .mq-cursor {
+    border-left: 4px solid #fff8c8 !important; /* Light caret for dark mode */
+    }
+    body.light-mode .mq-cursor {
+      border-left: 4px solid #505050 !important; /* Dark caret for light mode */
+    }
+    #angle-mode-indicator.dark-mode,
+    #base-indicator.dark-mode,
+    #theme-indicator.dark-mode,
+    #mode-indicator.dark-mode {
+      background-color: rgb(71, 80, 94);
+      color: #ebebeb;
+    }
+    #angle-mode-indicator.light-mode,
+    #base-indicator.light-mode,
+    #theme-indicator.light-mode,
+    #mode-indicator.light-mode {
+      background-color: rgb(193, 194, 183);
+      color: #3c3c3c;
+    }
+
+    #math-field {
+      border: 2px;
+      background-color:transparent;
+      font-size: 40px;
+      height: 100px;
+      border-radius: 0px;
+      width: 400px;
+      padding: 0px;
+      margin-top: 20px;
+      margin-left: 40px;
+      overflow: hidden;
+      display: block;
+    }
+    #transparentblock{
+      position:fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100%;
+      height: 100%;
+      color: transparent;
+      z-index: 9999px;
+    }
+
+    .offset-right {
+    margin-left: 200px; /* Shifts only elements with this class */
+    margin-top: -26px;
+    font-weight: lighter;
+    }
+    .indicators {
+    margin-left: 40px; /* Shifts only elements with this class */
+    margin-top: 60px;
+    font-weight: lighter;
+    }
+    .navigate-menu {
+    margin-left: 400px; /* Shifts only elements with this class */
+    margin-top: -78px;
+    font-weight: lighter;
+    }
+    .navigate-menu2 {
+    margin-left: 400px; /* Shifts only elements with this class */
+    margin-top: -20px;
+    font-weight: lighter;
+    }
+    .lightertext {
+    font-weight: lighter;
+    }
+    .hidden {
+    display: none !important;
+    }
+.buttons {
+  position: fixed;
+  top: 567px;
+  left: 20px;
+  display: grid;
+  grid-template-columns: repeat(5, 80px); /* 3 columns, each 60px wide */
+  padding: 10px;
+  gap: 10px; /* Space between buttons */
+  font-family: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+.buttons2 {
+  position: fixed;
+  top: 310px;
+  left: 21px;
+  display: grid;
+  grid-template-columns: repeat(6, 60px); /* 3 columns, each 60px wide */
+  padding: 10px;
+  gap: 13px; /* Space between buttons */
+}
+.statbuttons {
+  position: fixed;
+  top: 310px;
+  left: 60px;
+  display: grid;
+  grid-template-columns: repeat(5, 60px); /* 3 columns, each 60px wide */
+  padding: 10px;
+  gap: 13px; /* Space between buttons */
+}
+  .btnhidden {
+    visibility:hidden;
+  }
+    .buttonsmall.dark-mode {
+      background-color: #31444f;
+      color: #d0e8ff;
+      height: 68px;
+      width:68px;
+      border: none;
+      border-radius: 15px;
+      font-size: 25px;
+    }
+    .buttonsmall.light-mode {
+      background-color: #54534b;
+      color: #c5c5c5;
+      height: 68px;
+      width:68px;
+      border: none;
+      border-radius: 15px;
+      font-size: 25px;
+    }
+    .animated-btn.dark-mode {
+      background-color: #4f6e80;
+      color: #ffffff;
+      height: 80px;
+      width: 80px;
+      border: none;
+      border-radius: 40px;
+      font-size: 25px;
+    }
+    .animated-btn.light-mode {
+      background-color: #646464;
+      color: rgb(229, 229, 229);
+      height: 80px;
+      width: 80px;
+      border: none;
+      border-radius: 40px;
+      font-size: 25px;
+    }
+
+    #fullScreenMenu {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      padding: 10px;
+      z-index: 9996;
+      font-size: 22px;
+      margin: 0;
+      color: #353535;
+      transform: scale(1);
+      overflow-y: scroll;
+      overflow-x:hidden;
+      opacity: 0;
+    }
+
+@keyframes Result {
+  0% {
+    opacity: auto;
+    transform: auto;
+  }
+  60%{
+    transform: scale(0.99);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes Zoom {
+  0% {
+    transform: scale(1.1);
+    opacity: 0;
+    pointer-events: none;
+  }
+  60%{
+    transform: scale(0.99);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@keyframes Zoomout {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    pointer-events: none;
+  }
+  60%{
+    transform: scale(1.05);
+    pointer-events: none;
+  }
+  100% {
+    transform: scale(1.04);
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@keyframes Slideup {
+  0% {
+    transform: translateY(100px);
+    pointer-events: none;
+  }
+  60%{
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+    opacity:1;
+    pointer-events: auto;
+  }
+}
+
+@keyframes Slidedown {
+  0% {
+    transform: translateY(0px);
+    pointer-events: none;
+  }
+  60%{
+    transform: translateY(-10px);
+    pointer-events: none;
+  }
+  100% {
+    transform: translateY(100px);
+    pointer-events: none;
+  }
+}
+
+    #fade-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 9; /* make sure it's on top */
+      pointer-events: none; /* so it doesn't block clicks, remove if you want to block */
+      opacity: 0;
+      transition: opacity 1s;
+    }
+    #fade-overlay.show {
+      opacity: 1;
+    }
+    #rectangle.dark-mode {
+      position: fixed;
+      margin-left: 10px; /* Shifts only elements with this class */
+      margin-top: -168px;
+      width: 460px;
+      height: 250px;
+      background-color: #0d1921;
+      border: none;
+      border-radius: 10px;
+      z-index: -10;
+    }
+    #rectangle.light-mode {
+      position: fixed;
+      margin-left: 10px; /* Shifts only elements with this class */
+      margin-top: -168px;
+      width: 460px;
+      height: 250px;
+      background-color: #fffee3;
+      border: none;
+      border-radius: 10px;
+      z-index: -10;
+    }
+    .menutitles {
+      color: #353535;
+      line-height: 40px;
+      margin-top: 0px;
+      padding: 20px
+    }
+    .menutitles.dark-mode {
+      color: #ffffff;
+    }
+    .icons{
+      height: 200px;
+      border-radius: 20px;
+      color: black;
+      background: none;
+      border: none;
+    }
+    .iconcontainer{
+      background: none;
+      border: none;
+    }
+    img{
+      background: none;
+    }
+    #alpha.light-mode,
+    #stats.light-mode,
+    #stattick.light-mode,
+    #shift.light-mode{
+      color:unset;
+      background-color:unset;
+      color: rgb(255, 255, 255);
+      background-color: rgb(189, 121, 32);
+    }
+    #alpha.dark-mode,
+    #stats.dark-mode,
+    #stattick.dark-mode,
+    #shift.dark-mode{
+      color:unset;
+      background-color:unset;
+      color: rgb(255, 255, 255);
+      background-color: rgb(147, 90, 187);
+    }
+.removestat.light-mode{
+      color:unset;
+      background-color:unset;
+      color: rgb(255, 255, 255);
+      background-color: rgb(178, 87, 87);
+    }
+.removestat.dark-mode{
+      color:unset;
+      background-color:unset;
+      color: rgb(255, 255, 255);
+      background-color: rgb(90, 106, 187);
+    }
+
+#stats{
+font-size: 20px !important;
+}
+
+    .menubutton{
+      display: inline-block !important;
+      background-color: rgb(187, 90, 90);
+      color: rgb(229, 229, 229);
+      border: none;
+      outline-width: 10px;
+      height:40px;
+      width: 100px;
+      border-radius: 10px;
+      font-size: 25px; 
+    }
+    .menubutton.active{
+      background-color: unset;
+      background-color: #ae1818;
+      transform: scale(0.98);
+    }
+    .Modes{
+      display: flex;
+      flex-direction: column; /* stack top-to-bottom */
+      align-items: flex-start;
+      gap: 8px;   
+    }
+    .Modes button{
+      width: auto;             
+    }
+.mq-editable-field, 
+.mq-math-mode, 
+.mq-root-block, 
+.mq-operator-name, 
+.mq-nonSymbola, 
+.mq-large-operator{
+  font-family: unset;
+    font-family: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif; /* or your preferred font */
+}
+
+.option-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: sans-serif;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 6px;
+  background-color: rgba(255, 255, 255, 0);
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+body.dark-mode .option-group .option:hover{
+  background-color: #0d1921;
+}
+
+body.light-mode .option-group .option:hover{
+  background-color: #ffffff74;
+}
+
+
+.option input {
+  display: none; /* hide default radio button */
+}
+
+body.dark-mode .circle {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ccc;
+  border-radius: 50%;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+body.light-mode .circle {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #393939;
+  border-radius: 50%;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+body.light-mode .option input:checked + .circle {
+  border-color: rgb(189, 121, 32);
+  background: radial-gradient(rgb(189, 121, 32) 50%, transparent 51%);
+}
+
+body.dark-mode .option input:checked + .circle {
+  border-color: #5865f2;
+  background: radial-gradient(#5865f2 50%, transparent 51%);
+}
+
+.text.light-mode heading {
+  display: block;
+  color: #f7f7f7;
+  font-size: 20px;
+  margin-top: -6px;
+}
+.text.dark-mode heading {
+  display: block;
+  color: #ff0000;
+  font-size: 20px;
+  margin-top: -6px;
+}
+
+body.dark-mode .text p {
+  margin: 0;
+  font-size: 12px;
+  color: #b3c2d7;
+  margin-top: -10px;
+}
+
+body.light-mode .text p {
+  margin: 0;
+  font-size: 12px;
+  color: #685b53;
+  margin-top: -10px;
+}
+
+#mySlider {
+  width: 300px; /* make it wider */
+  height: 6px; /* optional: increase track height */
+}
+
+.custom-slider {
+  -webkit-appearance: none; /* Remove default styling */
+  width: 300px;
+  height: 8px;
+  border-radius: 5px;
+  outline: none;
+}
+
+/* Track */
+body.light-mode .custom-slider::-webkit-slider-runnable-track {
+  background: rgb(189, 121, 32);
+  height: 8px;
+  border-radius: 5px;
+}
+
+/* Thumb */
+body.light-mode .custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #b89d95;
+  border-radius: 50%;
+  cursor: pointer;
+  margin-top: -6px; /* Align thumb with track */
+}
+
+/* Track */
+body.dark-mode .custom-slider::-webkit-slider-runnable-track {
+  background: #5865F2;
+  height: 8px;
+  border-radius: 5px;
+}
+
+/* Thumb */
+body.dark-mode .custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #a295b8;
+  border-radius: 50%;
+  cursor: pointer;
+  margin-top: -6px; /* Align thumb with track */
+}
+
+      body.dark-mode .emulate {
+        font-family: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 36px;
+        color: #fff8c8;
+        margin-left:-190px;
+        margin-top:-15px;
+    }
+      body.light-mode .emulate {
+        font-family: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 36px;
+        color: #505050;
+        margin-left:-190px;
+        margin-top:-15px;
+    }
+    body.dark-mode #menuconfirm {
+      position: fixed;
+      bottom: -100px;
+      left: -10px;
+      width: 110%;
+      height: 200px;
+      background-color: #152432;
+      border: 3px solid #5865F2;
+      z-index: 9998;
+    }
+    body.light-mode #menuconfirm {
+      position: fixed;
+      bottom: -100px;
+      left: -10px;
+      width: 110%;
+      height: 200px;
+      background-color:rgb(233, 221, 206);
+      border: 3px solid rgb(189, 121, 32);
+      z-index: 9998;
+    }
+
+    body.dark-mode #confirmbutton {
+      position: fixed;
+      bottom:30px;
+      left:30px;
+
+      background-color: #5865F2;
+      color: rgb(229, 229, 229);
+      border: none;
+      height:50px;
+      width: 230px;
+      border-radius: 10px;
+      font-size: 20px;
+      z-index: 9999;
+    }
+
+    body.light-mode #confirmbutton {
+      position: fixed;
+      bottom:30px;
+      left:30px;
+      z-index: 9999;
+
+      background-color: rgb(189, 121, 32);
+      color: rgb(229, 229, 229);
+      border: none;
+      height:50px;
+      width: 230px;
+      border-radius: 10px;
+      font-size: 20px;
+    }
+    body.dark-mode #confirmbutton2 {
+      position: fixed;
+      bottom:30px;
+      left:300px;
+
+      background-color: #ce58f2;
+      color: rgb(229, 229, 229);
+      border: none;
+      height:50px;
+      width: 100px;
+      border-radius: 10px;
+      font-size: 20px;
+      z-index: 9999;
+    }
+
+    body.light-mode #confirmbutton2 {
+      position: fixed;
+      bottom:30px;
+      left:300px;
+      z-index: 9999;
+
+      background-color: rgb(189, 69, 32);
+      color: rgb(229, 229, 229);
+      border: none;
+      height:50px;
+      width: 100px;
+      border-radius: 10px;
+      font-size: 20px;
+    }
+    body.dark-mode .animated-btn.active,
+    body.dark-mode .shiftedstyle.active {
+      background-color: unset;
+      background-color: #ffffff;
+      color: unset;
+      color: #000000;
+      transform: scale(0.98); /* subtle press effect */
+    }
+    body.light-mode .animated-btn.active,
+    body.light-mode .shiftedstyle.active{
+      background-color: unset;
+      background-color:rgb(0, 0, 0);
+      color: unset;
+      color: #ffffff;
+      transform: scale(0.98); /* subtle press effect */
+    }
+    body.dark-mode .buttonsmall.active, 
+    body.dark-mode .shiftedsmall.active,
+    body.dark-mode #alpha.active,
+    body.dark-mode #stats.active,
+    body.dark-mode #shift.active {
+      background-color: #58a1d2 !important;
+      transform: scale(0.98); /* subtle press effect */
+    }
+    body.light-mode .buttonsmall.active, 
+    body.light-mode .shiftedsmall.active,
+    body.light-mode #alpha.active,
+    body.light-mode #stats.active,
+    body.light-mode #shift.active {
+      background-color: #9b9053 !important;
+      transform: scale(0.98); /* subtle press effect */
+    }
+    body.light-mode .shiftedstyle{
+      background-color: #804f4f;
+      color: #ffffff;
+      height: 80px;
+      width: 80px;
+      border: none;
+      border-radius: 40px;
+      font-size: 25px;
+    }
+    body.light-mode .shiftedsmall{
+      background-color: #4f3131;
+      color: #ffffff;
+      height: 68px;
+      width:68px;
+      border: none;
+      border-radius: 15px;
+      font-size: 25px;
+    }
+    body.light-mode #stats.shiftedsmall{background-color: #4f3131;}
+    body.dark-mode #stats.shiftedsmall{background-color: #4f314d;}
+    body.dark-mode .shiftedstyle{
+      background-color: #724f80;
+      color: #ffffff;
+      height: 80px;
+      width: 80px;
+      border: none;
+      border-radius: 40px;
+      font-size: 25px;
+    }
+    body.dark-mode .shiftedsmall{
+      background-color: #4f314d;
+      color: #ffffff;
+      height: 68px;
+      width:68px;
+      border: none;
+      border-radius: 15px;
+      font-size: 25px;
+    }
+    body.dark-mode .statstyle{
+      background-color: #505474;
+      color: #ffffff;
+    }
+    body.light-mode .statstyle{
+      background-color: #9f7862;
+      color: #ffffff;
+    }
+    body.dark-mode .statsmall{
+      background-color: #4f314d;
+      color: #ffffff;
+      height: 68px;
+      width:68px;
+      border: none;
+      border-radius: 15px;
+      font-size: 25px;
+    }
+    .functionlist{
+      max-height:240px;
+      min-height:50px;
+      overflow-y:scroll;
+      font-family: 'Symbola', serif;
+    }
+    .functionlist::-webkit-scrollbar {
+  display: none;
+}
+    #fullScreenMenu::-webkit-scrollbar {
+  display: none;
+}
+
+.animated-btn,
+.buttonsmall {
+  opacity: 0;
+  transform: translateY(40px);
+  animation: fadeBounce 0.6s ease-out forwards;
+}
+
+/* Keyframes for fade + bounce */
+@keyframes fadeBounce {
+  0% {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  100% {
+    opacity:1;
+    transform: translateY(0);
+  }
+}
+
+
+  </style>
+</head>
+
+<body>
+
+<div class="other">
+<div class="indicators">
+<div id="angle-mode-indicator" style="
+
+/* Angle Mode Indicator */
+
+  display: inline-block;
+  padding: 2px 4px;
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-family: inherit;
+  border-radius: 5px;
+">
+  DEG
+</div>
+
+<div id="theme-indicator" style="
+/* Theme Indicator */
+
+  display: inline-block;
+  padding: 2px 4px;
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-family: inherit;
+  border-radius: 5px;
+">
+</div>
+
+<div id="mode-indicator" style="
+/* Mode Indicator */
+
+  display: inline-block;
+  padding: 2px 4px;
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-family: inherit;
+  border-radius: 5px;
+">CALC
+</div>
+
+<div id="base-indicator" style="
+/* Base Indicator */
+
+  display: inline-block;
+  padding: 2px 4px;
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-family: inherit;
+  border-radius: 5px;
+">DECIMAL
+</div>
+</div>
+
+<div id="transparentblock"></div>
+  <div id="math-field" class="mathquill-editable"></div>
+  <div id="result" class="hidden"></div>
+
+  <div id="fade-overlay" class="fade"></div>
+
+<div id="rectangle"></div>
+
+<div id="fullScreenMenu" class="hidden">
+
+<div class="menutitles">
+  <div class="text">
+      <strong><heading>Modes</heading></strong></div>
+
+<!--Modes-->      
+
+<div class="option-group" aria-label="Modes">
+  <label class="option">
+    <input type="radio" tabindex="-1" name="modes" value="calculator" checked>
+    <span class="circle"></span>
+    <div class="text">
+      <heading>Calculator</heading>
+      <p>Classic calculations and composition.</p>
+    </div>
+  </label>
+
+  <label class="option">
+    <input type="radio" tabindex="-1" name="modes" value="stats">
+    <span class="circle"></span>
+    <div class="text">
+      <heading>Statistics</heading>
+      <p>A table of value and frequency for inputting and storing data.</p>
+    </div>
+  </label>
+
+  <label class="option">
+    <input type="radio" tabindex="-1" name="modes" value="verify">
+    <span class="circle"></span>
+    <div class="text">
+      <heading>Verify</heading>
+      <p>Check if an equation is true, false or an error.</p>
+    </div>
+  </label>
+
+  <label class="option">
+    <input type="radio" tabindex="-1" name="modes" value="functions">
+    <span class="circle"></span>
+    <div class="text">
+      <heading>Function Definition</heading>
+      <p>Define a function of any variable to be used later.</p>
+    </div>
+  </label>
+</div>
+
+<!--Functions-->   
+
+<div class="hidden" id="functionlist">
+  <div class="text">
+      <strong><heading>List of Functions</heading></strong></div>
+      <div class="functionlist">
+      <ul id="mathList">
+      </ul>
+      </div>
+</div>
+
+<!--Modes-->   
+      
+  <div class="text">
+      <strong><heading>Theme</heading></strong></div>
+
+<!--Theme-->   
+
+<div class="option-group" aria-label="Themes">
+  <label class="option">
+    <input type="radio" name="theme" value="light" checked>
+    <span class="circle"></span>
+    <div class="text">
+      <heading>Light</heading>
+      <p>Warm and bright, the color of optimism.</p>
+    </div>
+  </label>
+
+  <label class="option">
+    <input type="radio" name="theme" value="dark">
+    <span class="circle"></span>
+    <div class="text">
+      <heading>Dark</heading>
+      <p>Cool and mellow, the color of decision.</p>
+    </div>
+  </label>
+</div>
+
+<!--Theme-->   
+
+  <div class="text">
+      <strong><heading>Base System</heading></strong></div>     
+
+<heading>Base:</heading>
+
+<input type="range" id="mySlider" min="2" max="16" value="10" step="1" width="500px" class="custom-slider"/>
+
+<p><heading>Preview</heading></p>
+
+  <div class="emulate">
+<p><span id="sliderValue" class="backgroundbox" style="margin-left: 200px;">10</span>=10</p>
+</div>
+
+<div id="menurectangle"></div>
+
+<!--Theme-->   
+
+    <div class="text">
+      <strong><heading><span id="sliderValue"></span>Angles</heading></strong></div>
+
+<div class="option-group" aria-label="Angles">
+  <label class="option">
+    <input type="radio" name="Angles" value="Degrees" checked>
+    <span class="circle"></span>
+    <div class="text">
+      <heading>Degrees</heading>
+      <p>The classic measurement we all know and love.</p>
+    </div>
+  </label>
+
+  <label class="option">
+    <input type="radio" name="Angles" value="Radians">
+    <span class="circle"></span>
+    <div class="text">
+      <heading>Radians</heading>
+      <p>The superior measurement based on the unit circle.</p>
+    </div>
+  </label>
+
+  <label class="option">
+    <input type="radio" name="Angles" value="Gradians">
+    <span class="circle"></span>
+    <div class="text">
+      <heading>Gradians</heading>
+      <p>A hidden metric operating on 100 degrees per right angle.</p>
+    </div>
+  </label>
+
+    <div class="text">
+      <strong><heading><span id="sliderValue"></span>Key Effects</heading></strong></div>
+
+<div class="option-group" aria-label="Key Effects">
+  <label class="option">
+    <input type="radio" name="Key" value="none">
+    <span class="circle"></span>
+    <div class="text">
+      <heading>None</heading>
+      <p>No effects will be played, sweet silence!</p>
+    </div>
+  </label>
+
+  <label class="option">
+    <input type="radio" name="Key" value="vibrate">
+    <span class="circle"></span>
+    <div class="text">
+      <heading>Vibration</heading>
+      <p>A short vibration will play each time a key is pressed.</p>
+    </div>
+  </label>
+
+  <label class="option">
+    <input type="radio" name="Key" value="sound">
+    <span class="circle"></span>
+    <div class="text">
+      <heading>Sound</heading>
+      <p>The classic sound of a keyboard.</p>
+    </div>
+  </label>
+
+  <label class="option">
+    <input type="radio" name="Key" value="all" checked>
+    <span class="circle"></span>
+    <div class="text">
+      <heading>All</heading>
+      <p>The ultimate tactile experience of sound and vibration.</p>
+    </div>
+  </label>
+
+</div>
+
+<!--Theme-->    
+
+    <div class="text">
+      <strong><heading>Factory Reset</heading></strong></div>
+
+<button class=menubutton id="Decimal" onclick="Reset();">Reset</button>
+
+    <div class="text">
+      <p>(All stored information on this save and user preferences will be reset)</p>
+    </div>
+
+  <div style="height: 100px;"></div>
+
+</div> 
+
+</div>
+</div>
+
+<div id="fixed"class="hidden">
+<button id="confirmbutton" onclick="Apply()">Apply Preferences</button>
+<button id="confirmbutton2" onclick="back();">Back</button>
+<div id="menuconfirm"></div>
+</div>
+
+<div tabindex="-1" class="buttons">
+
+<button tabindex="-1" class="animated-btn" id="7" onclick="if (isStatisticsMode) {simulateTypingFocused('7')} else { if (Shift) {mathField.typedText('x')} else mathField.typedText('7')}">7</button>
+<button tabindex="-1" class="animated-btn" id="8" onclick="if (isStatisticsMode) {simulateTypingFocused('8')} else { if (Shift) {mathField.typedText('y')} else mathField.typedText('8')}">8</button>
+<button tabindex="-1" class="animated-btn" id="9" onclick="if (isStatisticsMode) {simulateTypingFocused('9')} else { if (Shift) {mathField.typedText('z')} else mathField.typedText('9')}">9</button>
+<button tabindex="-1" class="animated-btn" id="delete" onclick="if (isStatisticsMode) {simulateTypingFocused()} else {atomicdelete()}">DEL</button>
+<button tabindex="-1" class="animated-btn" id="settings" onclick="if (Shift) { if (!isDefiningFunction && !isVerifying){ unclear(); mathField.typedText('/'); mathField.keystroke('Backspace')}} else {Settings()}">⚙︎</button>
+
+<button tabindex="-1" class="animated-btn" id="4" onclick="if (isStatisticsMode) {simulateTypingFocused('4')} else { if (Shift) {mathField.typedText('h')} else {mathField.typedText('4')}}">4</button>
+<button tabindex="-1" class="animated-btn" id="5" onclick="if (isStatisticsMode) {simulateTypingFocused('5')} else { if (Shift) {mathField.typedText('m')} else {mathField.typedText('5')}}">5</button>
+<button tabindex="-1" class="animated-btn" id="6" onclick="if (isStatisticsMode) {simulateTypingFocused('6')} else { if (Shift) {mathField.typedText('n')} else {mathField.typedText('6')}}">6</button>
+<button tabindex="-1" class="animated-btn" id="times" onclick="if (isStatisticsMode) {simulateTypingFocused('*')} else {mathField.typedText('×')}">×</button>
+<button tabindex="-1" class="animated-btn" id="divide" onclick="if (Shift && !isDefiningFunction && !isVerifying) {cleardown(); mathField.typedText('/'); mathField.keystroke('Backspace')} else {if (isStatisticsMode) {simulateTypingFocused('/')} else { if (!Shift){mathField.typedText('÷')}}}">÷</button>
+
+<button tabindex="-1" class="animated-btn" id="1" onclick="if (isStatisticsMode) {simulateTypingFocused('1')} else { if (Shift) {mathField.typedText('a')} else {mathField.typedText('1')}}">1</button>
+<button tabindex="-1" class="animated-btn" id="2" onclick="if (isStatisticsMode) {simulateTypingFocused('2')} else { if (Shift) {mathField.typedText('f')} else {mathField.typedText('2')}}">2</button>
+<button tabindex="-1" class="animated-btn" id="3" onclick="if (isStatisticsMode) {simulateTypingFocused('3')} else { if (Shift) {mathField.typedText('g')} else {mathField.typedText('3')}}">3</button>
+<button tabindex="-1" class="animated-btn" id="+" onclick="if (isStatisticsMode) {simulateTypingFocused('+')} else {mathField.typedText('+')}">+</button>
+<button tabindex="-1" class="animated-btn" id="-" onclick="if (isStatisticsMode) {simulateTypingFocused('-')} else {mathField.typedText('-')}">-</button>
+
+<button tabindex="-1" class="animated-btn" id="0" onclick="if (isStatisticsMode) {simulateTypingFocused('0')} else { if (Shift) {mathField.typedText('W')} else mathField.typedText('0')}">0</button>
+<button tabindex="-1" class="animated-btn" id="." onclick="if (isStatisticsMode) {simulateTypingFocused('.')} else { if (Shift) {mathField.typedText(',')} else mathField.typedText('.')}">.</button>
+<button tabindex="-1" class="animated-btn" id="pi" onclick="if (isStatisticsMode) {simulateTypingFocused('π')} else { if (Shift) {mathField.typedText('e')} else mathField.typedText('π')}">π</button>
+<button tabindex="-1" class="animated-btn" id="Answer" onclick="if (isStatisticsMode) {simulateTypingFocused('Ans')} else { if (Shift) {mathField.typedText('Ran#')} else mathField.typedText('Ans')}">Ans</button>
+<button tabindex="-1" class="animated-btn" id="Equal" onclick="if (isStatisticsMode) {deleteLastStatRow()}else{enterpressed()}">=</button>
+
+</div>
+
+<div tabindex="-1" class="buttons2">
+
+<button tabindex="-1" class="buttonsmall" id="fraction" onclick="if (Shift) {mathField.typedText('nPr(')} else{mathField.typedText('/');}">ᵃ⁄ₓ</button>
+<button tabindex="-1" class="buttonsmall" id="sqrt" onclick="if (Shift) {mathField.typedText('nCr(')} else{mathField.typedText('sqrt')}">√</button>
+<button tabindex="-1" class="buttonsmall" id="left" onclick="left()">◀</button>
+<button tabindex="-1" class="buttonsmall" id="right" onclick="right()">▶</button>
+<button tabindex="-1" class="buttonsmall" class="alpha" id="alpha" onclick="if (!isDefiningFunction && !isVerifying) {orderedList.push(mathField.latex()); mathField.latex(''); mathField.typedText('/'); mathField.keystroke('Backspace'); if (orderedList.length > 50) {orderedList.shift();}}">AC</button>
+<button tabindex="-1" class="buttonsmall" class="shift" id="shift" onclick="ToggleShift()">S</button>
+
+<button tabindex="-1" class="buttonsmall" id="sin" onclick="if (Stat) {mathField.typedText('min')} else if (Shift) {mathField.typedText('sin^-1'); mathField.keystroke('Right'); mathField.typedText('(')} else mathField.typedText('sin(')">sin</button>
+<button tabindex="-1" class="buttonsmall" id="cos" onclick="if (Stat) {mathField.typedText('max')} else if (Shift) {mathField.typedText('cos^-1'); mathField.keystroke('Right'); mathField.typedText('(')} else mathField.typedText('cos(')">cos</button>
+<button tabindex="-1" class="buttonsmall" id="tan" onclick="if (Stat) {mathField.write('Σx');mathField.typedText('/'); mathField.keystroke('Backspace');} else if (Shift) {mathField.typedText('tan^-1'); mathField.keystroke('Right'); mathField.typedText('(')} else mathField.typedText('tan(')">tan</button>
+<button tabindex="-1" class="buttonsmall" id="ln" onclick="if (Stat) {mathField.typedText('Σx²')} else if (Shift) {mathField.typedText('e^')} else mathField.typedText('ln(')">ln</button>
+<button tabindex="-1" class="buttonsmall" id="log" onclick="if (Stat) {mathField.typedText('mean')} else if (Shift) {mathField.typedText('10^')} else mathField.typedText('log(')">log</button>
+<button tabindex="-1" class="buttonsmall" id="stats" onclick="if (Shift) {mathField.typedText('tanh(')} else ToggleStat()">STAT</button>
+
+<button tabindex="-1" class="buttonsmall" id="hcf" onclick="if (Stat) {mathField.typedText('ｎ')} else if (Shift) {mathField.typedText('lcm(')} else mathField.typedText('hcf(')">hcf</button>
+<button tabindex="-1" class="buttonsmall" id="exponent" onclick="if (Stat) {mathField.write('Q₁');mathField.typedText('/'); mathField.keystroke('Backspace');} else if (Shift) {mathField.typedText('^3')} else mathField.typedText('^2')">x²</button>
+<button tabindex="-1" class="buttonsmall" id="leftbracket" onclick="if (Stat) {mathField.write('Q₂');mathField.typedText('/'); mathField.keystroke('Backspace');} else mathField.typedText('(')">(</button>
+<button tabindex="-1" class="buttonsmall" id="rightbracket" onclick="if (Stat) {mathField.write('Q₃');mathField.typedText('/'); mathField.keystroke('Backspace');} else mathField.typedText(')')">)</button>
+<button tabindex="-1" class="buttonsmall" id="abs" onclick="if (Stat) {mathField.typedText('sx')} else if (Shift) {mathField.typedText('cosh(')} else mathField.typedText('abs(')">abs</button>
+<button tabindex="-1" class="buttonsmall" id="factorial" onclick="if (Stat) {mathField.write('σ');mathField.typedText('/'); mathField.keystroke('Backspace');} else if (Shift) {mathField.typedText('sinh(')} else mathField.typedText('!')">x!</button>
+</div>
+
+<div tabindex="-1" class="statbuttons">
+
+<button tabindex="-1" class="buttonsmall" id="(stat" onclick="simulateTypingFocused('(')">(</button>  
+<button tabindex="-1" class="btnhidden"></button>
+<button tabindex="-1" class="buttonsmall" id="statup" onclick="navigatestat('Up')">▲</button>
+<button tabindex="-1" class="btnhidden"></button>
+<button tabindex="-1" class="buttonsmall" id=")stat" onclick="simulateTypingFocused(')')">)</button>
+<button tabindex="-1" class="buttonsmall" id="statsquare" onclick="simulateTypingFocused('^2')">x²</button> 
+<button tabindex="-1" class="buttonsmall" id="statleft" onclick="navigatestat('Left');">◀</button> 
+<button tabindex="-1" class="buttonsmall" id="stattick" onclick="addStatRow()">✔</button>  
+<button tabindex="-1" class="buttonsmall" id="statright" onclick="navigatestat('Right')">▶</button>
+<button tabindex="-1" class="buttonsmall" id="statlog" onclick="simulateTypingFocused('log(')">log</button>
+<button tabindex="-1" class="buttonsmall" id="state" onclick="simulateTypingFocused('e')">e</button>
+<button tabindex="-1" class="btnhidden"></button>
+<button tabindex="-1" class="buttonsmall" id="statdown" onclick="navigatestat('Down')">▼</button>
+<button tabindex="-1" class="btnhidden"></button>
+<button tabindex="-1" class="buttonsmall" id="statln" onclick="simulateTypingFocused('ln(')">ln</button>
+</div>
+
+<body>
+
+  <script>
+
+function findstatinput(){
+    const inputs = document.querySelectorAll('#stats-table input');
+
+  for (const input of inputs) {
+    if (input.value.includes('|')) {
+      return input; // This exits the entire function
+    }
+  }
+
+  const firstStatInput = document.querySelector('.stat-input');
+  return firstStatInput
+}
+
+  var input = findstatinput();
+
+
+var startup = new Audio('startup.wav'); 
+
+var regularclick = new Audio('regularclick.mp3');
+var special = new Audio('special.mp3');
+
+volume = 0.5;
+
+const scrollbtn = document.querySelectorAll('.buttonsmall, .animated-btn, .statbuttons, .shiftedstyle, .shiftedsmall');
+
+const btn = document.querySelectorAll('.buttonsmall, .animated-btn, .statbuttons, .confirmbutton, .confirmbutton2, .menubutton, .shiftedstyle, .shiftedsmall');
+
+let isAnimating = false;
+let isStatisticsMode = false;
+
+document.getElementById('result').addEventListener('animationstart', () => {
+  isAnimating = true;
+});
+
+document.getElementById('result').addEventListener('animationend', () => {
+  isAnimating = false;
+});
+let buttondown;
+let intervalId;
+
+btn.forEach(el => {
+  el.addEventListener('touchstart', () => {
+    if (!el.id) return;
+    const e = document.getElementById(el.id);
+
+    buttondown = true;
+    touchstart(e);
+    clearInterval(intervalId);
+    el.timeoutId = setTimeout(() => {
+      clearInterval(intervalId); // <-- Clear previous interval after 500ms
+      btn.forEach(f => {if (f.id !== el.id)
+        {clearTimeout(f.timeoutId);
+        f.classList.remove('active');}
+        ;}); // Remove active class from all buttons
+
+        if (el.id !== 'settings' && el.id !== 'shift' && el.id !== 'alpha' && el.id !== 'stattick' && el.id !== 'Equal'){
+          if (el.id !== 'stats'){
+      intervalId = setInterval(() => touchstart(e), 100);
+          } else if (Shift){
+            intervalId = setInterval(() => touchstart(e), 100);
+          }
+        }
+    }, 500);
+  });
+
+  el.addEventListener('touchend', e => {
+    clearTimeout(el.timeoutId);
+    buttondown = false;
+    el.classList.remove('active');
+    e.preventDefault();
+  }, true);
+});
+
+function touchsound(el){
+      if (sound) {
+      if (el.id === 'settings' || el.id === 'shift' || el.id === 'alpha' || el.id === 'stats' || el.id === 'delete' || el.id === 'Equal' || el.id === 'times' || el.id === 'divide' || el.id === '+' || el.id === '-') {
+        special.pause();           // Stop current playback
+        special.currentTime = 0;   // Reset to beginning
+        special.play(); 
+      } else {
+    regularclick.pause();           // Stop current playback
+    regularclick.currentTime = 0;   // Reset to beginning
+    regularclick.play(); 
+  }
+}
+  if (navigator.vibrate && vibe) {
+    navigator.vibrate(10);
+  }
+}
+
+function touchstart(el){
+if (buttondown){
+
+const r = document.getElementById('result');
+const styles = window.getComputedStyle(r);
+
+if (el.id !== 'Equal' && document.getElementById('result').classList.contains('hidden') === false && styles.animationName !== 'Zoomout') {
+      r.style.animation = 'none'; // Reset animation
+      fadeOut("result")
+    }
+
+const tbody = document.getElementById('stats-tbody');
+const rows = tbody.querySelectorAll('tr');
+
+    if (!isStatisticsMode){
+mathField.typedText('◉');
+const marked = mathField.latex();
+const index = marked.indexOf('◉');
+if (el.id !== 'delete' && el.id !== 'left' && el.id !== 'right') {
+  touchsound(el);
+  } else if (el.id === 'delete' && (marked.slice(index-1, index) !== '')&& (marked.slice(index-1, index) !== '=')) {
+    touchsound(el);
+  } else if (el.id === 'left' && (mathField.latex() !== '')) {
+    touchsound(el);
+  } else if (el.id === 'right' && (mathField.latex() !== '')) {
+    touchsound(el);
+  }
+mathField.keystroke('Backspace')}
+
+if (isStatisticsMode) {
+
+let input = findstatinput();;
+let start = input.selectionStart;
+let end = input.selectionEnd; 
+pos = input.value.indexOf('|');
+
+    const currentCell = input.closest('td');
+    const currentRow = input.closest('tr');
+    const allRows = Array.from(document.querySelectorAll('#stats-tbody tr'));
+    const rowIndex = allRows.indexOf(currentRow);
+    const allInputsInRow = Array.from(currentRow.querySelectorAll('input'));
+    const colIndex = allInputsInRow.indexOf(input);
+    const currentInput = findstatinput();
+
+if (el.id !== 'delete' && el.id !== 'statright' && el.id !== 'statleft' && el.id !== 'statup' && el.id !== 'statdown' && el.id !== 'stattick' && el.id !== 'Equal') {
+  if (input.value.length < 16){touchsound(el)}
+  } else if (el.id === 'statleft' && (input.value.slice(pos - 1, pos) === '') && !(colIndex === 1)) {
+  } else if (el.id === 'delete' && (input.value.slice(pos - 1, pos) === '') && !(colIndex > 0 && currentInput.selectionStart === 0)) {el.classList.add('active');return}
+  else if (el.id === 'statright' && (input.value.slice(pos+1, pos+2) === '') && !(colIndex === 0)) {
+  } else if (el.id === 'statup' && !(rowIndex > 0)) {
+  } else if (el.id === 'statdown' && !(rowIndex < allRows.length - 1)) {
+  } else if (el.id === 'stattick' && (rows.length === 25)) {
+  } else if (el.id === 'Equal' && (rows.length === 1)) {
+  } else {touchsound(el)}
+}
+el.click()
+el.classList.add('active');
+} else return
+}
+
+  const radios = document.querySelectorAll('.option-group input[type="radio"]');
+
+  radios.forEach(radio => {
+    radio.addEventListener('change', (event) => {
+      if (navigator.vibrate && vibe) {
+    navigator.vibrate(10);
+  }
+      if (event.target.checked) {
+        // This function runs every time a selection changes
+        
+        if (event.target.value === 'dark') {
+        setTheme('dark');
+        Theme = 'dark';
+      }
+      if (event.target.value === 'light') {
+        setTheme('light');
+        Theme = 'light';
+      }
+      if (event.target.value === 'calculator') {
+        Mode = 1;
+      }
+      if (event.target.value === 'stats') {
+        Mode = 2;
+      }
+      if (event.target.value === 'verify') {
+        Mode = 3;
+      }
+      if (event.target.value === 'functions') {
+        Mode = 4;      
+      }
+      if (event.target.value === 'Degrees') {
+        angleMode = 'degrees';
+      }
+      if (event.target.value === 'Radians') {
+        angleMode = 'radians';
+      }
+      if (event.target.value === 'Gradians') {
+        angleMode = 'gradians';
+      }
+      if (event.target.value === 'none') {
+        vibe = false;
+        sound = false;
+      }
+      if (event.target.value === 'vibrate') {
+        vibe = true;
+        sound = false;
+      }
+      if (event.target.value === 'sound') {
+        vibe = false;
+        sound = true;
+      }
+      if (event.target.value === 'all') {
+        vibe = true;
+        sound = true;
+    }
+      }
+    });
+  });
+
+document.addEventListener('touchstart', e => {
+  e.preventDefault(); // Stops browser from thinking it should show the keyboard;
+}, true, {passive:false});
+
+// Add a click event listener to each one
+scrollbtn.forEach(button => {
+  button.addEventListener('click', () => {
+    scrollToCursor(); // Call your function here
+  });
+});
+
+function scrollToCursor() {
+  const cursor = document.querySelector(".mq-cursor");
+  if (cursor && !isElementVisible(cursor)) {
+    cursor.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+
+function isElementVisible(el) {
+  const rect = el.getBoundingClientRect();
+  const vWidth = window.innerWidth || document.documentElement.clientWidth;
+  const vHeight = window.innerHeight || document.documentElement.clientHeight;
+
+  if (rect.right < 0 || rect.bottom < 0 || rect.left > vWidth || rect.top > vHeight) {
+    return false;
+  }
+
+  const efp = (x, y) => document.elementFromPoint(x, y);
+  return (
+    el.contains(efp(rect.left, rect.top)) ||
+    el.contains(efp(rect.right, rect.top)) ||
+    el.contains(efp(rect.right, rect.bottom)) ||
+    el.contains(efp(rect.left, rect.bottom))
+  );
+}
+
+let currentelement = 0;
+let orderedList = [];
+
+// Function to add an item
+function clear() {
+  orderedList.push(mathField.latex());
+  mathField.latex(''); // Clear the math field after adding
+  mathField.typedText('/');
+  mathField.keystroke('Backspace')
+}
+
+// Function to retrieve and remove the most recent item
+function unclear() {
+  if (orderedList[orderedList.length - (currentelement+1)] === undefined) {
+    return null;
+  }
+  currentelement = currentelement + 1; // Increment the current element index
+  const latest = orderedList[orderedList.length - (currentelement)];
+  mathField.latex(latest); // Set the math field to the latest item
+}
+
+function cleardown() {
+  if (orderedList[orderedList.length - (currentelement-1)] === undefined) {
+    return null;
+  }
+  currentelement = currentelement + -1;
+  const latest = orderedList[orderedList.length - (currentelement)];
+  mathField.latex(latest); // Set the math field to the latest item
+}
+
+  document.querySelectorAll('.statbuttons').forEach(el => {
+  el.classList.add('hidden');
+       });
+
+const buttons = document.querySelectorAll('.buttonsmall,.animated-btn');
+
+buttons.forEach((btn, index) => {
+  btn.style.animationDelay = `${index * 0.01}s`;
+});
+
+if (localStorage.getItem('theme') === 'dark') {
+document.querySelector('input[name="theme"][value="dark"]').checked = true;
+} else {
+document.querySelector('input[name="theme"][value="light"]').checked = true;
+}
+
+let userFunctions = {};
+let angleMode = 'degrees';
+let vibe= true;
+let sound= true;
+let Mode = 1;
+let Shift = false;
+
+function addLatex(text) {
+  let input = text;
+  if (input.trim() === "") return;
+
+  const li = document.createElement("li");
+  li.textContent = `\\(${input}\\)`; // Wrap in inline LaTeX delimiters
+  document.getElementById("mathList").appendChild(li);
+
+document.getElementById("functionlist").classList.remove("hidden")
+
+  MathJax.typeset(); // Re-render LaTeX
+}
+
+  function removeLatex(text) {
+    const ul = document.getElementById("mathList");
+    const items = ul.querySelectorAll("li");
+    items.forEach(item => {
+      if (item.textContent === text) {
+        ul.removeChild(item);
+      }
+    });
+  }
+
+  function removeFunctionsStartingWith(letter) {
+  const list = document.getElementById("mathList");
+  const items = list.querySelectorAll("li");
+
+  items.forEach(item => {
+    const text = item.textContent.trim();
+    if (text.startsWith(letter)) {
+      list.removeChild(item);
+      document.getElementById('result').textContent = text.slice(0,4) + " Redefined";
+    }
+  });
+}
+
+function simulateTypingFocused(text) {
+
+let input = findstatinput();
+input.focus();
+
+let start = input.selectionStart;
+let end = input.selectionEnd; 
+pos = input.value.indexOf('|');
+            
+  input.value = input.value.slice(0, start - 1) + input.value.slice(end);
+  start--;
+
+  input.setSelectionRange(start, start);
+
+  input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Backspace' })); 
+
+if (input.value.length < 16) {
+  if (!text){simulateTypingImmediate('');simulateTypingImmediate('|')}else {simulateTypingImmediate(text);}
+} else if (!text) {simulateTypingImmediate();simulateTypingImmediate('|')}
+if (text){
+simulateTypingImmediate('|');}
+
+}
+
+function simulateTypingImmediate(text) {
+    let input = document.activeElement
+    if (input && input.tagName === "INPUT" && input.type === "text" && input.id !== "textToType") {
+        
+        if (text) {
+            // --- Typing ---
+            let start = input.selectionStart;
+            let end = input.selectionEnd;
+
+            const before = input.value.slice(0, start);
+            const after = input.value.slice(end);
+            input.value = before + text + after;
+
+            const newPos = start + text.length;
+            input.setSelectionRange(newPos, newPos);
+
+            for (let char of text) {
+                input.dispatchEvent(new KeyboardEvent('keydown', { key: char }));
+                input.dispatchEvent(new KeyboardEvent('keypress', { key: char }));
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new KeyboardEvent('keyup', { key: char }));
+            }
+          }else{
+            let start = input.selectionStart;
+            let end = input.selectionEnd;
+            if (input.value.slice(pos - 3, pos) === "Ans") {
+            simulateTyping('')
+            simulateTyping('')
+            simulateTyping('')
+            }else if (input.value.slice(pos - 4, pos) === "log(") {
+                simulateTyping('')
+            simulateTyping('')
+            simulateTyping('')
+                simulateTyping('')
+            }else if (input.value.slice(pos - 3, pos) === "ln(") {
+            simulateTyping('')
+            simulateTyping('')
+            simulateTyping('')
+            } else {
+                // No selection, delete one char before cursor
+                simulateTyping('')
+            }
+          }
+        }
+        }
+      
+function simulateTyping(text) {
+    let input = document.activeElement
+    if (input && input.tagName === "INPUT" && input.type === "text" && input.id !== "textToType") {
+        
+        if (text) {
+            // --- Typing ---
+            let start = input.selectionStart;
+            let end = input.selectionEnd;
+
+            const before = input.value.slice(0, start);
+            const after = input.value.slice(end);
+            input.value = before + text + after;
+
+            const newPos = start + text.length;
+            input.setSelectionRange(newPos, newPos);
+
+            for (let char of text) {
+                input.dispatchEvent(new KeyboardEvent('keydown', { key: char }));
+                input.dispatchEvent(new KeyboardEvent('keypress', { key: char }));
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new KeyboardEvent('keyup', { key: char }));
+            }
+          }else{
+            // --- Deleting (Backspace) ---
+            let start = input.selectionStart;
+            let end = input.selectionEnd;
+                input.value = input.value.slice(0, start - 1) + input.value.slice(end);
+                start--;
+
+            input.setSelectionRange(start, start);
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Backspace' }));
+          }
+        }
+      }
+
+  const slider = document.getElementById('mySlider');
+  const output = document.getElementById('sliderValue');
+
+  // Update output immediately when slider moves
+  slider.addEventListener('input', () => {
+
+const value = Number(slider.value);
+
+if (value >= 11 && value <= 15) {
+    if (value < 13) {
+      slider.value = 10; // Jump back
+    } else {
+      slider.value = 16; // Jump forward
+    }
+  }
+
+    output.textContent = slider.value; 
+    Base = Number(output.textContent);
+  }
+  );
+
+function MenuToggle() {
+      document.getElementById("fullScreenMenu").classList.toggle("hidden");
+      // Your logic here
+      }
+
+let Stat = false      
+function ToggleStat() {
+  Stat = !Stat;
+  if (Stat) {
+  document.querySelectorAll('#sin, #cos, #tan, #ln, #log, #hcf, #exponent, #leftbracket, #rightbracket, #abs, #factorial').forEach(el => {
+  el.classList.add('statstyle');
+});
+ 
+document.getElementById('sin').textContent = 'min';
+document.getElementById('cos').textContent = 'max';
+document.getElementById('tan').textContent = 'Σx';
+
+document.getElementById('log').textContent = 'x̄';
+document.getElementById('ln').textContent = 'Σx²';
+
+document.getElementById('hcf').textContent = 'n';
+document.getElementById('exponent').textContent = 'Q₁';
+document.getElementById('leftbracket').textContent = 'Q₂';
+
+document.getElementById('rightbracket').textContent = 'Q₃';
+document.getElementById('abs').textContent = 'sx';
+document.getElementById('factorial').textContent = 'σ';
+
+  } else {
+  document.querySelectorAll('#sin, #cos, #tan, #ln, #log, #hcf, #exponent, #leftbracket, #rightbracket, #abs, #factorial').forEach(el => {
+  el.classList.remove('statstyle');
+});
+
+document.getElementById('sin').textContent = 'sin';
+document.getElementById('cos').textContent = 'cos';
+document.getElementById('tan').textContent = 'tan';
+
+document.getElementById('log').textContent = 'log';
+document.getElementById('ln').textContent = 'ln';
+document.getElementById('stats').textContent = 'STAT';
+
+document.getElementById('hcf').textContent = 'hcf';
+document.getElementById('exponent').textContent = 'x²';
+document.getElementById('leftbracket').textContent = '(';
+
+document.getElementById('rightbracket').textContent = ')';
+document.getElementById('abs').textContent = 'abs';
+document.getElementById('factorial').textContent = 'x!';
+  }
+}
+
+
+function ToggleShift() {
+  Shift = !Shift;
+  Stat = false;
+  if (Shift) {
+  document.querySelectorAll('.animated-btn').forEach(el => {
+  el.classList.add('shiftedstyle');
+});   
+ document.querySelectorAll('.buttonsmall').forEach(el => {
+  el.classList.add('shiftedsmall')
+  el.classList.remove('statstyle');
+});
+document.getElementById('1').textContent = 'a';
+document.getElementById('2').textContent = 'f';
+document.getElementById('3').textContent = 'g';
+document.getElementById('4').textContent = 'h';
+document.getElementById('5').textContent = 'm';
+document.getElementById('6').textContent = 'n';
+document.getElementById('7').textContent = 'x';
+document.getElementById('8').textContent = 'y';
+document.getElementById('9').textContent = 'z';
+
+document.getElementById('pi').textContent = 'e';
+document.getElementById('Answer').textContent = 'Ran#';
+
+document.getElementById('0').textContent = 'W';
+document.getElementById('.').textContent = ',';
+
+document.getElementById('sin').textContent = 'sin⁻¹';
+document.getElementById('cos').textContent = 'cos⁻¹';
+document.getElementById('tan').textContent = 'tan⁻¹';
+
+document.getElementById('log').textContent = '10ˣ';
+document.getElementById('ln').textContent = 'eˣ';
+
+document.getElementById('hcf').textContent = 'lcm';
+document.getElementById('leftbracket').textContent = '(';
+document.getElementById('rightbracket').textContent = ')';
+
+document.getElementById('exponent').textContent = 'x³';
+document.getElementById('factorial').textContent = 'sinh';
+document.getElementById('abs').textContent = 'cosh';
+document.getElementById('stats').textContent = 'tanh';
+
+document.getElementById('sqrt').textContent = 'nCr';
+document.getElementById('fraction').textContent = 'nPr';
+
+document.getElementById('settings').textContent = '▲';
+document.getElementById('divide').textContent = '▼';
+
+  } else {
+    document.querySelectorAll('.shiftedstyle').forEach(el => {
+  el.classList.remove('shiftedstyle');
+  el.classList.add('.animated-btn');
+});   
+ document.querySelectorAll('.shiftedsmall').forEach(el => {
+  el.classList.remove('shiftedsmall');
+  el.classList.add('.buttonsmall');
+}); 
+document.getElementById('1').textContent = '1';
+document.getElementById('2').textContent = '2';
+document.getElementById('3').textContent = '3';
+document.getElementById('4').textContent = '4';
+document.getElementById('5').textContent = '5';
+document.getElementById('6').textContent = '6';
+document.getElementById('7').textContent = '7';
+document.getElementById('8').textContent = '8';
+document.getElementById('9').textContent = '9';
+
+document.getElementById('pi').textContent = 'π';
+document.getElementById('Answer').textContent = 'Ans';
+
+document.getElementById('0').textContent = '0';
+document.getElementById('.').textContent = '.';
+
+document.getElementById('sqrt').textContent = '√';
+document.getElementById('fraction').textContent = 'ᵃ⁄ₓ';
+
+document.getElementById('sin').textContent = 'sin';
+document.getElementById('cos').textContent = 'cos';
+document.getElementById('leftbracket').textContent = '(';
+document.getElementById('rightbracket').textContent = ')';
+document.getElementById('tan').textContent = 'tan';
+
+document.getElementById('log').textContent = 'log';
+document.getElementById('ln').textContent = 'ln';
+
+document.getElementById('hcf').textContent = 'hcf';
+
+document.getElementById('exponent').textContent = 'x²';
+document.getElementById('factorial').textContent = 'x!';
+document.getElementById('abs').textContent = 'abs';
+document.getElementById('stats').textContent = 'STAT';
+
+document.getElementById('settings').textContent = '︎︎︎⚙︎';
+document.getElementById('divide').textContent = '÷';
+
+  }
+}
+
+function Reset() {
+
+document.getElementById('fullScreenMenu').scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+
+document.querySelector('input[name="modes"][value="calculator"]').checked = true;
+document.querySelector('input[name="Angles"][value="Degrees"]').checked = true;
+document.querySelector('input[name="theme"][value="light"]').checked = true;
+document.querySelector('input[name="Key"][value="all"]').checked = true;
+
+vibe = true;
+sound = true;
+setTheme('light');
+slider.value = 10;
+Base = 10;
+Mode = 1;
+currentelement = 0;
+orderedList = [];
+angleMode = 'degrees';
+
+vibeb = true;
+soundb = true;
+Themeb = 'light';
+slider.valueb = 10;
+Modeb = 1;
+angleModeb = 'degrees';
+
+mathField.latex('');
+  const tbody = document.getElementById('stats-tbody');
+  const rows = tbody.querySelectorAll('tr');
+  // Keep the first row, remove all others
+  rows.forEach((row, idx) => {
+    if (idx > 0) row.remove();
+  });
+  // Optionally, clear the inputs in the first row
+  const valueInput = document.querySelector('.stat-input');
+  if (valueInput) valueInput.value = '';
+  const freqInput = document.querySelector('.freq-input');
+  if (freqInput) freqInput.value = '1';
+
+document.getElementById("functionlist").classList.add("hidden")
+for (const name in parser.getAll()) {
+  if (typeof parser.getAll()[name] === 'function') {
+    parser.remove(name);
+  }
+}
+const list = document.getElementById('mathList');
+if (list) {
+  list.innerHTML = '';
+} else {
+  console.warn('Element with ID "myList" not found.');
+}
+
+  document.getElementById('sliderValue').textContent = 10; 
+
+}
+
+let statcaret = 0; //starting caret position for statistics mode
+
+function clearcaret(){
+const inputs = document.querySelectorAll('.stat-input, .freq-input');
+
+inputs.forEach(input => {
+  input.value = input.value.replace(/\|/g, '');
+});
+}
+
+function Apply(){
+startup.play();
+
+document.getElementById('confirmbutton').disabled = true; // Disable the button to prevent multiple clicks
+document.getElementById('confirmbutton2').disabled = true;
+
+slideOut('menuconfirm');
+slideOut('confirmbutton');
+slideOut('confirmbutton2');
+fadeOut('fullScreenMenu');
+  
+Base = Number(slider.value);
+
+if (Stat) {
+  ToggleStat(); // Reset Stat state if it was on
+}
+
+if (Mode !== 2){
+document.getElementById('Equal').classList.remove('removestat')}
+
+  if (Mode === 1) {
+    returntoCalculator();
+    mathField.typedText('/'); mathField.keystroke('Backspace');
+  } else if (Mode == 2) {
+    startStatisticsMode();
+    document.getElementById('Equal').textContent = '✘';
+    document.getElementById('Equal').classList.add('removestat')
+    if (Shift) {
+      ToggleShift(); // Reset Shift state if it was on
+    }
+    const firstStatInput = document.querySelector('.stat-input');
+    setTimeout(() => firstStatInput.focus(), clearcaret(), 10);
+    setTimeout(() => simulateTypingImmediate('|'), 11);
+  } else if (Mode == 3) {
+    startVerifyMode();
+    mathField.typedText('/'); mathField.keystroke('Backspace');
+  } else if (Mode == 4) {
+    startFunctionDefinition();
+    mathField.typedText('/'); mathField.keystroke('Backspace');
+  }
+
+if (Mode !== 2){
+  document.querySelectorAll('.buttons2').forEach(el => {
+  el.classList.remove('hidden');
+});  
+       document.querySelectorAll('.statbuttons').forEach(el => {
+  el.classList.add('hidden');
+  });
+        document.getElementById('result').classList.add('hidden');
+      document.getElementById('Equal').textContent = '=';
+}
+
+updateAngleModeIndicator();
+updateThemeIndicator();
+updateModeIndicator();
+
+      overlay.classList.add('show');
+      overlay.style.transition = 'none';
+      overlay.style.opacity = '1';
+
+      // Allow the browser to render, then enable transition and fade out
+      setTimeout(() => {
+        overlay.style.transition = 'opacity 0.5s';
+        overlay.style.opacity = '0';
+        // Optionally, remove the .show class after fade out
+        setTimeout(() => {
+          overlay.classList.remove('show');
+          overlay.style.transition = '';
+        }, 200); // match your transition duration
+      }, 5); // small delay to ensure the style is applied
+
+  const buttons = document.querySelectorAll('.buttonsmall,.animated-btn');
+  buttons.forEach((btn, index) => {
+    btn.style.animation = 'none'; // Reset animation
+    void btn.offsetWidth;
+    btn.style.animation = `fadeBounce 0.6s ease-out forwards`;
+    btn.style.animationDelay = `${index * 0.01}s`;
+  });
+
+  setTimeout(() =>
+document.getElementById('settings').disabled = false, 1000);
+
+}
+
+function handleAnimationEnd(event) {
+  const el = event.currentTarget;
+  el.style.animation = '';
+  el.classList.add('hidden');
+}
+
+function fadeOut(id) {
+
+  const el = document.getElementById(id);
+  el.style.animation = 'none'; // Reset animation
+    void el.offsetWidth;
+    el.style.animation = `Zoomout 0.6s ease-out none`;
+el.addEventListener("animationend", handleAnimationEnd, { once: true });
+}
+
+function slideOut(id) {
+  const el = document.getElementById(id);
+  el.style.animation = 'none'; // Reset animation
+    void el.offsetWidth;
+    el.style.animation = `Slidedown 0.6s ease-out none`;
+  el.addEventListener("animationend", () => {
+  el.style.animation =''; // Reset animation after it ends
+  document.getElementById('fixed').classList.add("hidden");
+  document.getElementById('fullScreenMenu').classList.add("hidden");
+}, { once: true });
+}
+
+  const overlay = document.getElementById('fade-overlay');
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'dark' || savedTheme === 'light') {
+    {setTheme(savedTheme); updateThemeIndicator();}
+  } else {
+    {setTheme('light'); updateThemeIndicator();} // Default theme
+  }
+
+let Modeb = 1
+let angleModeb = 'radians'
+let vibeb = true
+let soundb = true
+  if (savedTheme === 'dark') {
+    Theme = 'dark';
+    Themeb = 'dark';
+  } else {
+    Theme = 'light';
+    Themeb = 'light';
+  }
+
+function back(){
+  Mode = Modeb;
+  angleMode = angleModeb;
+  vibe = vibeb;
+  sound = soundb;
+  Theme = Themeb;
+  slider.value = slider.valueb;
+  output.textContent = slider.valueb;
+
+document.getElementById('fullScreenMenu').scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+
+if (Mode === 1) {document.querySelector('input[name="modes"][value="calculator"]').checked = true;}
+if (Mode === 2) {document.querySelector('input[name="modes"][value="stats"]').checked = true;}
+if (Mode === 3) {document.querySelector('input[name="modes"][value="verify"]').checked = true;}
+if (Mode === 4) {document.querySelector('input[name="modes"][value="functions"]').checked = true;}
+
+if (angleMode === 'radians') {
+document.querySelector('input[name="Angles"][value="Radians"]').checked = true;
+} else if (angleMode === 'degrees') {
+document.querySelector('input[name="Angles"][value="Degrees"]').checked = true;
+} else if (angleMode === 'gradians') {
+document.querySelector('input[name="Angles"][value="Gradians"]').checked = true;
+}
+
+if (vibe === false && sound === false) {
+document.querySelector('input[name="Key"][value="none"]').checked = true;
+} else if (vibe === true && sound === false) {
+document.querySelector('input[name="Key"][value="vibrate"]').checked = true;
+} else if (vibe === false && sound === true) {
+document.querySelector('input[name="Key"][value="sound"]').checked = true;
+} else if (vibe === true && sound === true) {
+document.querySelector('input[name="Key"][value="all"]').checked = true;
+}
+
+if (Theme === 'dark') {
+  document.querySelector('input[name="theme"][value="dark"]').checked = true;
+  setTheme('dark');
+} else {
+  document.querySelector('input[name="theme"][value="light"]').checked = true;
+  setTheme('light');
+}
+}
+
+function Settings(){
+
+Modeb = Mode;
+angleModeb = angleMode;
+vibeb = vibe;
+soundb = sound;
+Themeb = Theme;
+slider.valueb = slider.value
+output.textContent = slider.value;
+
+// Create a synthetic touchend event
+const btn = document.querySelectorAll('.buttonsmall, .animated-btn, .statbuttons, .confirmbutton, .confirmbutton2, .menubutton, .shiftedstyle, .shiftedsmall');
+
+const touchendEvent = new TouchEvent('touchend', {
+  bubbles: true,
+  cancelable: true
+});
+
+// Dispatch the event
+btn.forEach(el => {
+el.dispatchEvent(touchendEvent);
+});
+
+document.getElementById('menuconfirm').style.animation = `Slideup 0.6s ease-out forwards`;
+document.getElementById('confirmbutton').style.animation = `Slideup 0.6s ease-out forwards`;
+document.getElementById('confirmbutton2').style.animation = `Slideup 0.6s ease-out forwards`;
+document.getElementById('fullScreenMenu').style.animation = `Zoom 0.6s ease-out forwards`;
+
+  document.getElementById('fullScreenMenu').disabled = false;
+document.getElementById('settings').disabled = true;
+document.getElementById('confirmbutton').disabled = false;
+document.getElementById('confirmbutton2').disabled = false;
+
+      if (event.repeat) return;
+      transition();
+      mathField.blur();
+      MenuToggle();
+      document.getElementById("fixed").classList.toggle("hidden");
+      if (!isDefiningFunction) {
+        if (!isVerifying) {
+          if (!isStatisticsMode) {
+          let savedLatex = mathField.latex();
+          localStorage.setItem('savedLatex', savedLatex);
+          }
+          }
+        }
+      if (isStatisticsMode) {
+        if (!document.getElementById("fullScreenMenu").classList.contains("hidden"))
+        document.querySelectorAll('.stat-input, .freq-input').forEach(input => input.blur());
+        else {
+          const firstStatInput = document.querySelector('.stat-input')
+          firstStatInput.focus()
+        }
+    }
+  }
+
+let Base = 10; // Default base
+
+document.getElementById('math-field').addEventListener('mousedown', e => {
+  setTimeout(() => mathField.blur(), 1);
+});
+
+document.getElementById('math-field').addEventListener('touchdown', e => {
+  setTimeout(() => mathField.blur(), 1);
+});
+
+
+const button = document.getElementById('delete');
+let isHeld = false;
+
+function atomicdelete() {
+      mathField.typedText('◉');
+
+      const marked = mathField.latex();
+
+      // Remove the marker again so field is unchanged
+
+      const index = marked.indexOf('◉');
+      mathField.keystroke('Backspace');
+
+      if (marked.slice(index - 1, index) !== '='){mathField.keystroke('Backspace');}
+
+      if (
+  ['Q₁','Q₂','Q₃','Σx'].includes(marked.slice(index - 2, index))
+|| (marked.slice(index - 17, index) === '\\operatorname{sx}')) {
+      mathField.keystroke('Backspace');
+      }
+
+//2 Backspace
+
+      if (
+  ['\\min','\\max',].includes(marked.slice(index - 4, index))
+  ||  (marked.slice(index - 18, index) === '\\operatorname{Ans}')
+  || (marked.slice(index - 9, index) === '\\ln\\left(')) {
+      mathField.keystroke('Backspace');mathField.keystroke('Backspace');}
+
+//3 Backspace
+
+      if (
+    ['\\sin\\left(', '\\cos\\left(', '\\tan\\left('].includes(marked.slice(index - 10, index))
+  || marked.slice(index - 10, index) === '\\log\\left('
+  ||['\\operatorname{Ran}#','\\operatorname{mean}'].includes(marked.slice(index - 19, index))
+  ||['\\operatorname{lcm}\\left(','\\operatorname{hcf}\\left(','\\operatorname{abs}\\left(','\\operatorname{nPr}\\left(','\\operatorname{nCr}\\left('].includes(marked.slice(index - 24, index))
+) {
+for (let i = 0; i < 3; i++) {
+  mathField.keystroke('Backspace');
+}
+      }
+
+//4 Backspace
+
+      if (['\\sinh\\left(','\\cosh\\left(','\\tanh\\left('].includes(marked.slice(index - 11, index))
+|| (marked.slice(index - 20, index) === '\\operatorname{stdev}')
+|| marked.slice(index - 4, index) === 'Σx^2') {
+        // Cursor was just after \sin → delete \sin
+for (let i = 0; i < 4; i++) {
+  mathField.keystroke('Backspace');
+}
+      }
+
+if (['\\sin^{-1}\\left(','\\cos^{-1}\\left(','\\tan^{-1}\\left('].includes(marked.slice(index - 15, index))){
+for (let i = 0; i < 7; i++) {
+  mathField.keystroke('Backspace');
+}
+      }
+    };
+
+function left(){
+      mathField.typedText('◉');
+
+      const marked = mathField.latex();
+
+      // Remove the marker again so field is unchanged
+      mathField.keystroke('Backspace');
+
+      const index = marked.indexOf('◉');
+      mathField.keystroke('Left');
+
+      if (marked.slice(index-1, index) === ''){
+      mathField.moveToRightEnd();}
+
+      if (
+  ['Q₁','Q₂','Q₃','Σx'].includes(marked.slice(index - 2, index))
+|| (marked.slice(index - 17, index) === '\\operatorname{sx}')) {
+      mathField.keystroke('Left');
+      }
+
+//2 Backspace
+
+      if (
+  ['\\min','\\max',].includes(marked.slice(index - 4, index))
+  ||  (marked.slice(index - 18, index) === '\\operatorname{Ans}')
+  || (marked.slice(index - 9, index) === '\\ln\\left(')) {
+      mathField.keystroke('Left');mathField.keystroke('Left');}
+
+//3 Backspace
+
+      if (
+    ['\\sin\\left(', '\\cos\\left(', '\\tan\\left('].includes(marked.slice(index - 10, index))
+  || marked.slice(index - 10, index) === '\\log\\left('
+  ||['\\operatorname{Ran}#','\\operatorname{mean}'].includes(marked.slice(index - 19, index))
+  ||['\\operatorname{lcm}\\left(','\\operatorname{hcf}\\left(','\\operatorname{abs}\\left(','\\operatorname{nPr}\\left(','\\operatorname{nCr}\\left('].includes(marked.slice(index - 24, index))
+) {
+for (let i = 0; i < 3; i++) {
+  mathField.keystroke('Left');
+}
+      }
+
+//4 Backspace
+
+      if (['\\sinh\\left(','\\cosh\\left(','\\tanh\\left('].includes(marked.slice(index - 11, index))
+|| (marked.slice(index - 20, index) === '\\operatorname{stdev}')
+|| marked.slice(index - 4, index) === 'Σx^2') {
+        // Cursor was just after \sin → delete \sin
+for (let i = 0; i < 4; i++) {
+  mathField.keystroke('Left');
+}
+      }
+
+if (['\\sin^{-1}\\left(','\\cos^{-1}\\left(','\\tan^{-1}\\left('].includes(marked.slice(index - 15, index))){
+for (let i = 0; i < 7; i++) {
+  mathField.keystroke('Left');
+}
+      }
+    };
+function right() {
+      mathField.typedText('◉');
+
+      const marked = mathField.latex();
+
+      // Remove the marker again so field is unchanged
+      mathField.keystroke('Backspace');
+
+      const index = marked.indexOf('◉');
+      mathField.keystroke('Right');
+
+
+      if (marked.slice(index + 1, index+2) === ''){
+      mathField.moveToLeftEnd();}
+
+      if (
+  ['Q₁','Q₂','Q₃','Σx'].includes(marked.slice(index +1, index+3))
+|| (marked.slice(index +1, index+18) === '\\operatorname{sx}')) {
+      mathField.keystroke('Right');
+      }
+
+//2 Backspace
+
+      if (
+  ['\\min','\\max',].includes(marked.slice(index +1, index+5))
+  ||  (marked.slice(index +1, index+19) === '\\operatorname{Ans}')
+  || (marked.slice(index +1, index+10) === '\\ln\\left(')) {
+      mathField.keystroke('Right');mathField.keystroke('Right');}
+
+//3 Backspace
+
+      if (
+    ['\\sin\\left(', '\\cos\\left(', '\\tan\\left('].includes(marked.slice(index +1, index+11))
+  || marked.slice(index +1, index+11) === '\\log\\left('
+  ||['\\operatorname{Ran}#','\\operatorname{mean}'].includes(marked.slice(index +1, index+20))
+  ||['\\operatorname{lcm}\\left(','\\operatorname{hcf}\\left(','\\operatorname{abs}\\left(','\\operatorname{nPr}\\left(','\\operatorname{nCr}\\left('].includes(marked.slice(index+1, index+25))
+) {
+for (let i = 0; i < 3; i++) {
+  mathField.keystroke('Right');
+}
+      }
+
+//4 Backspace
+
+      if (['\\sinh\\left(','\\cosh\\left(','\\tanh\\left('].includes(marked.slice(index +1, index+12))
+|| (marked.slice(index +1, index+21) === '\\operatorname{stdev}')
+|| marked.slice(index +1, index+5) === 'Σx^2') {
+        // Cursor was just after \sin → delete \sin
+for (let i = 0; i < 4; i++) {
+  mathField.keystroke('Right');
+}
+      }
+
+if (['\\sin^{-1}\\left(','\\cos^{-1}\\left(','\\tan^{-1}\\left('].includes(marked.slice(index +1, index+16))){
+for (let i = 0; i < 7; i++) {
+  mathField.keystroke('Right');
+}
+      }
+    };
+
+var MQ = MathQuill.getInterface(2);
+var mathField = MQ.MathField(document.getElementById('math-field'), {
+  autoOperatorNames: 'sin cos tan log ln Ans lcm hcf stdev abs sinh cosh tanh nPr nCr Ran max min sx mean',
+  autoCommands: 'sqrt pi theta',
+spaceBehavesLikeTab: true,})
+mathField.typedText('/'); mathField.keystroke('Backspace')
+
+
+    function setTheme(theme) {
+  localStorage.setItem('theme', theme); // Save choice
+  if (theme === 'dark') {
+    document.body.classList.add('dark-mode');
+    document.getElementById('math-field').classList.add('dark-mode');
+    document.getElementById('result').classList.add('dark-mode');
+    document.getElementById('fullScreenMenu').classList.add('dark-mode');
+    document.getElementById('angle-mode-indicator').classList.add('dark-mode');
+    document.getElementById('base-indicator').classList.add('dark-mode');
+    document.getElementById('theme-indicator').classList.add('dark-mode');
+    document.getElementById('mode-indicator').classList.add('dark-mode');
+    document.getElementById('fade-overlay').classList.add('dark-mode');
+    document.getElementById('stats-table').classList.add('dark-mode');
+    document.getElementById('rectangle').classList.add('dark-mode');
+    
+document.querySelectorAll('.animated-btn').forEach(el => {
+  el.classList.add('dark-mode');
+});
+document.querySelectorAll('.buttonsmall').forEach(el => {
+  el.classList.add('dark-mode');
+});
+document.querySelectorAll('.menutitles').forEach(el => {
+  el.classList.add('dark-mode');
+});
+
+    document.body.classList.remove('light-mode');
+    document.getElementById('math-field').classList.remove('light-mode');
+    document.getElementById('result').classList.remove('light-mode');
+    document.getElementById('fullScreenMenu').classList.remove('light-mode');
+    document.getElementById('angle-mode-indicator').classList.remove('light-mode');
+    document.getElementById('base-indicator').classList.remove('light-mode');
+    document.getElementById('theme-indicator').classList.remove('light-mode');
+    document.getElementById('mode-indicator').classList.remove('light-mode');
+    document.getElementById('fade-overlay').classList.remove('light-mode');
+    document.getElementById('stats-table').classList.remove('light-mode');
+    document.getElementById('rectangle').classList.remove('light-mode');
+
+ document.querySelectorAll('.animated-btn').forEach(el => {
+  el.classList.remove('light-mode');
+});   
+ document.querySelectorAll('.buttonsmall').forEach(el => {
+  el.classList.remove('light-mode');
+});  
+ document.querySelectorAll('.menutitles').forEach(el => {
+  el.classList.remove('light-mode');
+});   
+
+  } else {
+    document.body.classList.add('light-mode');
+    document.getElementById('math-field').classList.add('light-mode');
+    document.getElementById('result').classList.add('light-mode');
+    document.getElementById('fullScreenMenu').classList.add('light-mode');
+    document.getElementById('angle-mode-indicator').classList.add('light-mode');
+    document.getElementById('base-indicator').classList.add('light-mode');
+    document.getElementById('theme-indicator').classList.add('light-mode');
+    document.getElementById('mode-indicator').classList.add('light-mode');
+    document.getElementById('fade-overlay').classList.add('light-mode');
+    document.getElementById('stats-table').classList.add('light-mode');
+    document.getElementById('rectangle').classList.add('light-mode');
+
+document.querySelectorAll('.animated-btn').forEach(el => {
+  el.classList.add('light-mode');
+}); 
+document.querySelectorAll('.buttonsmall').forEach(el => {
+  el.classList.add('light-mode');
+});    
+document.querySelectorAll('.menutitles').forEach(el => {
+  el.classList.add('light-mode');
+});    
+
+    document.body.classList.remove('dark-mode');
+    document.getElementById('math-field').classList.remove('dark-mode');
+    document.getElementById('result').classList.remove('dark-mode');
+    document.getElementById('fullScreenMenu').classList.remove('dark-mode');
+    document.getElementById('angle-mode-indicator').classList.remove('dark-mode');
+    document.getElementById('base-indicator').classList.remove('dark-mode');
+    document.getElementById('theme-indicator').classList.remove('dark-mode');
+    document.getElementById('mode-indicator').classList.remove('dark-mode');
+    document.getElementById('fade-overlay').classList.remove('dark-mode');
+    document.getElementById('stats-table').classList.remove('dark-mode');
+    document.getElementById('rectangle').classList.remove('dark-mode');
+
+ document.querySelectorAll('.animated-btn').forEach(el => {
+  el.classList.remove('dark-mode');
+});   
+ document.querySelectorAll('.buttonsmall').forEach(el => {
+  el.classList.remove('dark-mode');
+ });
+  document.querySelectorAll('.menutitles').forEach(el => {
+  el.classList.remove('dark-mode');
+ });
+
+  }
+}
+
+function enterpressed() {
+  const el = document.getElementById('result')
+    if (event.repeat) return;
+    
+    let latex = mathField.latex();
+    const functionDefPattern = /^[a-zA-Z]\w*\s*\(\s*[a-zA-Z]\w*\s*\)\s*=/;
+
+    if (isVerifying) {
+      // Convert LaTeX to math.js expression
+      let expr = convertLatexToMathJS(latex);
+
+      // Split at '=' to get left and right sides
+      let [left, right] = expr.split('=');
+      if (left && right) {
+        try {
+          // Try symbolic simplification
+          let diff = math.simplify(`(${left}) - (${right})`);
+          let isTrue = diff.equals(0);
+
+          // If symbolic fails, try numeric check for some values
+          if (!isTrue) {
+            // Try for x = 1, 2, 3 (if x is present)
+            let numericTrue = true;
+            for (let x = 1; x <= 3; x++) {
+
+              let l = parser.evaluate(wrapTrigForAngleMode(convertLatexToMathJS(left, {x})));
+              let r = parser.evaluate(wrapTrigForAngleMode(convertLatexToMathJS(right, {x})));
+              if (Math.abs(l - r) > 1e-9) {
+                numericTrue = false;
+                break;
+              }
+            }
+            isTrue = numericTrue;
+          }
+
+          el.textContent = isTrue ? 'True' : 'False';
+        } catch (err) {
+          el.textContent = 'Cannot verify';
+        }
+      } else {
+        el.textContent = 'Not an equation';
+      }
+    } else {
+    if (isDefiningFunction) {
+      // User is defining a function in terms of x
+        let expr = convertLatexToMathJS(latex);
+      try {
+        // Convert LaTeX to math.js expression
+
+        // Define f(x) in math.js
+        if (functionDefPattern.test(expr)) {
+          parser.evaluate(expr);
+          // Optionally, store the LaTeX for later display
+          mathField.latex('=');
+          el.textContent = 'Function Defined';
+  removeFunctionsStartingWith(expr.slice(0,2));
+  addLatex(expr);
+        } else {
+          el.textContent = 'Invalid Definition';
+        }
+      } catch (err) {
+        el.textContent = 'Invalid Function';
+      }
+    } else {
+      // Regular calculation mode
+      // (your usual calculation logic, e.g.):
+      let expr = convertLatexToMathJS(latex);
+      console.log(expr)
+      try {
+        let med = parser.evaluate(wrapTrigForAngleMode(expr));
+        let res = Number(med.toFixed(12));
+        let final = res.toString(Base);
+        localStorage.setItem('Answer', res);
+        if (Base !== 16) {
+          el.textContent = '= ' + Number(Number(Number(final).toPrecision(12)));
+        } else {
+          el.textContent = '= ' + final;
+        }
+      } catch (err) {
+        if (!isStatisticsMode){
+        el.textContent = 'Error';
+        } else {
+          el.classList.add('hidden');
+        }
+      }
+    }
+  }
+  el.style.animation = 'none'; // Reset animation
+  el.removeEventListener("animationend", handleAnimationEnd, { once: true });
+  el.classList.remove('hidden');
+  el.style.animation = 'none'; // Reset animation
+  el.style.animation = 'Zoom 0.6s ease-out forwards';
+  el.style.animationPlayState = 'running';
+}
+
+function wrapTrigForAngleMode(expr) {
+      if (angleMode === 'degrees') {
+        // Replace inverse trig first, with word boundaries
+        expr = expr.replace(/\b(asin|acos|atan)\s*\(([^)]+)\)/g, '($1($2)*180/pi)');
+        // Then replace normal trig, with word boundaries
+        expr = expr.replace(/\b(sin|cos|tan)\s*\(([^)]+)\)/g, '$1(($2)*pi/180)');
+      } else if (angleMode === 'gradians') {
+        // Replace inverse trig first, with word boundaries
+        expr = expr.replace(/\b(asin|acos|atan)\s*\(([^)]+)\)/g, '($1($2)*200/pi)');
+        // Then replace normal trig, with word boundaries
+        expr = expr.replace(/\b(sin|cos|tan)\s*\(([^)]+)\)/g, '$1(($2)*pi/200)');
+      }
+      return expr;
+    }
+
+    function updateThemeIndicator() {
+    const themeIndicator = document.getElementById('theme-indicator');
+    if (document.getElementById("fullScreenMenu").classList.contains("light-mode"))
+    themeIndicator.textContent = 'LIGHT';
+    else
+    themeIndicator.textContent = 'DARK';
+    }
+
+    function updateBaseIndicator() {
+    const baseIndicator = document.getElementById('base-indicator');
+    if (Base === 10){
+    baseIndicator.textContent = 'DECIMAL';
+    }else if (Base === 2){
+    baseIndicator.textContent = 'BINARY';
+    }else if (Base === 8){
+    baseIndicator.textContent = 'OCTAL';
+    }else if (Base === 16){
+    baseIndicator.textContent = 'HEXADECIMAL';
+    }
+  }
+
+    function transition() {
+      // Instantly show (no transition)
+      overlay.classList.add('show');
+      overlay.style.transition = 'none';
+      overlay.style.opacity = '0';
+
+      // Allow the browser to render, then enable transition and fade out
+      setTimeout(() => {
+        overlay.style.transition = 'opacity 0.5s';
+        overlay.style.opacity = '1';
+        // Optionally, remove the .show class after fade out
+        setTimeout(() => {
+          overlay.classList.remove('show');
+          overlay.style.transition = '';
+        }, 200); // match your transition duration
+      }, 5); // small delay to ensure the style is applied
+    }
+    document.getElementById("result").style.fontSize = "40px"
+
+let lastKey = null;
+
+    let isDefiningFunction = false;
+    let isVerifying = false;
+    let Menunumber = 1;
+    let userFunctionLatex = '';
+
+    const parser = math.parser();
+    parser.set('lcm', lcm);
+    parser.set('hcf', math.gcd); // Alias for hcf
+    parser.set('npr', npr);
+    parser.set('ncr', ncr);
+    parser.set('abs', math.abs);
+    parser.set('sinh', math.sinh);
+    parser.set('cosh', math.cosh);
+    parser.set('tanh', math.tanh);
+
+let answer = localStorage.getItem('Answer')
+
+    parser.set('ln', math.log);
+    parser.set('log', math.log10);
+    parser.set('Ans', answer);
+    parser.set('e', Math.E);
+    parser.set('π', math.pi);
+
+    // Set initial latex if needed
+    // mathField.latex(mathjsToLatex(latex));
+
+let lastLatex = '';
+const mathFieldElem = document.getElementById("math-field");
+
+    // Update angle mode indicator on page load
+
+    function updateAngleModeIndicator() {
+    const indicator = document.getElementById('angle-mode-indicator');
+    indicator.textContent = angleMode.slice(0, 3).toUpperCase();
+    }
+
+function handleSmartDelete(mathFieldInstance, evt) {
+  var cursor = mathFieldInstance.__controller.cursor;
+  var leftNode = cursor.prev;
+
+  if (!leftNode){
+    return false;} // nothing to delete
+
+  // Check if leftNode is an OperatorName block containing something like 'sin', 'cos', etc.
+  // The 'ctrlSeq' or 'text' property depends on MathQuill internals.
+  // We'll do a safe heuristic:
+  if (leftNode.ctrlSeq && ['\\sin','\\cos','\\tan','\\log','\\ln'].includes(leftNode.ctrlSeq)) {
+    // Delete the whole block
+    cursor.selectLeft();  // select the operator
+    cursor.deleteSelection(); // delete it
+    evt.preventDefault();
+    return true;
+  }
+
+  // Could also handle longer multi-letter names inside TextBlocks if needed
+  return false; // let default backspace happen
+}
+
+function calculatestats() {
+
+const start = performance.now();
+
+  const valueInputs = document.querySelectorAll('.stat-input');
+  const freqInputs = document.querySelectorAll('.freq-input');
+  let totalFreq = 0;
+  let sum = 0;
+  let sumSquares = 0;
+
+  for (let i = 0; i < valueInputs.length; i++) {
+    const value = parseFloat(parser.evaluate(valueInputs[i].value));
+    const freq = parseFloat(parser.evaluate(freqInputs[i].value));
+
+    if (!isNaN(value) && !isNaN(freq) && freq > 0) {
+      totalFreq += freq;
+      sum += value * freq;
+      sumSquares += value * value * freq;
+    }
+  }
+
+const end = performance.now();
+if (end - start > 500) { // 500ms threshold
+  return NaN;
+}
+
+  const mean = sum / totalFreq;
+  const variance = (sumSquares / totalFreq) - (mean * mean);
+  const stdDevp = Math.sqrt(variance);
+
+  const sampleVariance = (sumSquares - totalFreq * mean * mean) / (totalFreq - 1);
+  const stdDev = Math.sqrt(sampleVariance);
+
+  return {
+  stdevp: stdDevp,
+  mean: mean,
+  stdev: stdDev,
+  sum: sum,
+  sumsquares: sumSquares};
+}
+
+function calculateMean() {
+  const valueInputs = document.querySelectorAll('.stat-input');
+  const freqInputs = document.querySelectorAll('.freq-input');
+  let sum = 0;
+  let totalFreq = 0;
+
+  for (let i = 0; i < valueInputs.length; i++) {
+    const value = parseFloat(parser.evaluate(valueInputs[i].value));
+    const freq = parseFloat(parser.evaluate(freqInputs[i].value, 10));
+    if (!isNaN(value) && !isNaN(freq) && freq > 0) {
+      sum += value * freq;
+      totalFreq += freq;
+    }
+  }
+
+  if (totalFreq === 0) return NaN; // Avoid division by zero
+  return sum / totalFreq;
+}
+
+function calculateQuartiles() {
+  const valueInputs = document.querySelectorAll('.stat-input');
+  const freqInputs = document.querySelectorAll('.freq-input');
+
+  try {
+    // Step 1: Build and clean frequency table
+    const data = [];
+    for (let i = 0; i < valueInputs.length; i++) {
+      const value = parseFloat(parser.evaluate(valueInputs[i].value));
+      const freq = parseInt(parser.evaluate(freqInputs[i].value));
+      if (isFinite(value) && isFinite(freq) && freq > 0) {
+        data.push({ value, freq }); console.log({ value, freq });
+      }
+    }
+
+    if (data.length === 0) {return NaN}
+
+    // Step 2: Sort by value
+    data.sort((a, b) => a.value - b.value);
+
+    // Step 3: Compute total frequency
+    const totalFreq = data.reduce((sum, item) => sum + item.freq, 0);
+
+    // Step 4: Helper to find interpolated quantile
+    function getQuantile(q) {
+      const target = q * (totalFreq - 1); // 0-based index
+      let cumulative = 0;
+
+      for (let i = 0; i < data.length; i++) {
+        const prev = cumulative;
+        cumulative += data[i].freq;
+
+        if (target < cumulative) {
+          const offset = target - prev;
+          const fraction = offset / data[i].freq;
+
+          // Interpolate between current and next value if possible
+          const current = data[i].value;
+          const next = (i + 1 < data.length) ? data[i + 1].value : current;
+          return current + fraction * (next - current);
+        }
+      }
+
+      return NaN;
+    }
+
+    // Step 5: Calculate quartiles
+    const Q1 = getQuantile(0.25);
+    const Q2 = getQuantile(0.5); // Median
+    const Q3 = getQuantile(0.75);
+
+    return { Q1, Q2, Q3 };
+  } catch (error) {
+    console.warn('Quartile calculation error:', error.message);
+    return { Q1: NaN, Q2: NaN, Q3: NaN };
+  }
+}
+
+function calculatenumber() {
+  const valueInputs = document.querySelectorAll('.stat-input');
+  return valueInputs.length;
+  }
+
+function getMaxStatValue() {
+  const valueInputs = document.querySelectorAll('.stat-input');
+  let max = -Infinity;
+  valueInputs.forEach(input => {
+    const value = parseFloat(parser.evaluate(input.value));
+    if (!isNaN(value)) {
+      if (value > max) max = value;
+    }
+  });
+  return max === -Infinity ? NaN : max;
+}
+
+function getMinStatValue() {
+  const valueInputs = document.querySelectorAll('.stat-input');
+  let min = Infinity;
+  valueInputs.forEach(input => {
+    const value = parseFloat(parser.evaluate(input.value));
+    if (!isNaN(value)) {
+      if (value < min) min = value;
+    }
+  });
+  return min === Infinity ? NaN : min;
+}
+
+    function addStatRow() {
+    const tbody = document.getElementById('stats-tbody');
+    const rows = tbody.querySelectorAll('tr');
+    if (rows.length < 25) {
+      const tbody = document.getElementById('stats-tbody');
+      const row = document.createElement('tr');
+      row.classList.add('fade-row');
+      row.innerHTML = `
+      <td><input readonly="true" type="text" inputmode="numeric" pattern="[0-9]*" class="stat-input">
+      <td><input readonly="true" type="text" inputmode="numeric" pattern="[0-9]*" class="freq-input" value="1">
+      `;
+      tbody.appendChild(row);
+      setTimeout(() => {row.classList.add('show')}, 100);
+    }
+    }
+
+function deleteLastStatRow() {
+
+  const tbody = document.getElementById('stats-tbody');
+  const rows = tbody.querySelectorAll('tr');
+  if (rows.length > 1) {
+    const row = rows[rows.length - 1];
+    row.classList.remove('show'); // Start fade out
+    setTimeout(() => {
+      row.remove();
+      // After deletion, check if any input is focused
+      setTimeout(() => {
+        if (!isAnyStatInputFocused()) {
+          clearcaret();
+          const firstInput = tbody.querySelector('.stat-input');
+          if (firstInput) firstInput.focus();
+          simulateTyping('|');
+        }
+      }, 0);
+    }, 400); // Match the transition duration
+  }
+}
+
+    function isAnyStatInputFocused() {
+    return document.activeElement &&
+    (document.activeElement.classList.contains('stat-input') ||
+     document.activeElement.classList.contains('freq-input'));
+}
+    function updateModeIndicator() {
+    const modeindicator = document.getElementById('mode-indicator');
+    if (isDefiningFunction) {
+      modeindicator.textContent = 'FUNC';
+    } else if (isVerifying) {
+      modeindicator.textContent = 'VERIF';
+    } else if (isStatisticsMode) {
+      modeindicator.textContent = 'STATS';
+    } else {
+      modeindicator.textContent = 'CALC';
+    }
+    }
+    // Mode Functions
+
+    function startStatisticsMode() {
+      isStatisticsMode = true;
+      isDefiningFunction = false;
+      isVerifying = false;
+      mathField.latex(''); // Clear the mathfield
+      document.body.classList.add('stats-mode');
+      document.getElementById('stats-table').classList.remove('hidden');
+      mathField.blur();
+       document.querySelectorAll('.buttons2').forEach(el => {
+  el.classList.add('hidden');
+});  
+       document.querySelectorAll('.statbuttons').forEach(el => {
+  el.classList.remove('hidden');
+  }); 
+    }
+
+    function exitStatisticsMode() {
+      clearcaret();
+      isStatisticsMode = false;
+      document.body.classList.remove('stats-mode');
+      document.getElementById('stats-table').classList.add('hidden');
+      document.querySelectorAll('.buttonsmall').forEach(el => {
+      el.classList.remove('hidden');
+  });  
+    }
+
+    function startFunctionDefinition() {
+        exitStatisticsMode();
+        isVerifying = false;
+        mathField.latex('='); // Clear the mathfield
+        document.getElementById('result').textContent = 'Define a function';
+        isDefiningFunction = true;
+    }
+    function startVerifyMode() {
+      exitStatisticsMode();
+      isDefiningFunction = false;
+      isVerifying = true;
+      mathField.latex('=');
+      document.getElementById('result').classList.add('hidden');
+    }
+    function countExponents(latex) {
+        let exponentPattern = /\^{/g; // Finds `{` inside exponent notation
+        return (latex.match(exponentPattern) || []).length;
+    }
+    function mathjsToLatex(expr) {
+    return expr.replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}');
+    }
+
+    function fixMissingParentheses(latex) {
+      const funcs = ['log', 'ln', 'sin', 'cos', 'tan','sin(^){-1}'];
+      funcs.forEach(func => {
+        const regex = new RegExp(`\\\\${func}([^\\s\\\\\\(\\{]+)`, 'g');
+        latex = latex.replace(regex, `\\${func}($1)`);
+      });
+      return latex;
+    }
+
+    function addParenthesesToInverseTrig(expr) {
+      return expr.replace(/(asin|acos|atan)([^()\s]+)/g, (match, fn, arg) => {
+      return `${fn}(${arg})`;
+     });
+    }
+
+function lcm(a, b) {
+  // Ensure positive integers
+  a = Math.abs(a);
+  b = Math.abs(b);
+  if (a === 0 || b === 0) return 0;
+  // Use the GCD to compute LCM
+  function gcd(x, y) {
+    while (y !== 0) {
+      [x, y] = [y, x % y];
+    }
+    return x;
+  }
+  return (a * b) / gcd(a, b);
+}
+
+function npr(n, r) {
+  // Ensure positive integers
+x = math.factorial(n)/math.factorial(n - r)
+    return x;
+  }
+
+function ncr(n, r) {
+  // Ensure positive integers
+x = math.factorial(n)/(math.factorial(n - r)*math.factorial(r))
+    return x;
+  }
+
+function setBrightness(value) {
+  // Clamp value between 0.5 and 2 for safety
+  value = Math.max(0.5, Math.min(2, value));
+  document.documentElement.style.setProperty('--site-brightness', value);
+  localStorage.setItem('site-brightness', value); // Optional: persist setting
+}
+
+function getBrightness() {
+  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--site-brightness')) || 1;
+}
+
+// Example: Increase brightness
+function increaseBrightness() {
+  setBrightness(getBrightness() + 0.1);
+}
+
+// Example: Decrease brightness
+function decreaseBrightness() {
+  setBrightness(getBrightness() - 0.1);
+}
+
+function replaceNestedSqrt(latex) {
+  // This regex matches the innermost \sqrt{...}
+
+  // Helper to find matching braces for nested sqrt
+  function findMatchingBrace(str, start) {
+    let depth = 0;
+    for (let i = start; i < str.length; i++) {
+      if (str[i] === '{') depth++;
+      if (str[i] === '}') {
+        depth--;
+        if (depth === 0) return i;
+      }
+    }
+    return -1;
+  }
+  // Recursive replacement
+  function replaceSqrt(str) {
+    let i = 0;
+    while (i < str.length) {
+      if (str.slice(i, i + 5) === '\\sqrt') {
+        let argStart = str.indexOf('{', i + 5);
+        let argEnd = findMatchingBrace(str, argStart);
+        if (argStart === -1 || argEnd === -1) break;
+        // Recursively process the argument
+        let arg = replaceSqrt(str.slice(argStart + 1, argEnd));
+        // Replace the whole \sqrt{...} with sqrt(arg)
+        str = str.slice(0, i) + 'sqrt(' + arg + ')' + str.slice(argEnd + 1);
+        i += 1; // Move forward to avoid infinite loop
+      } else {
+        i++;
+      }
+    }
+    return str;
+  }
+
+  return replaceSqrt(latex);
+}
+
+function convertLatexToMathJS(latex) {
+const stats = calculatestats()
+
+  latex = fixStackedExponents(latex);
+  latex = fixFractions(latex);
+  let answer = localStorage.getItem('Answer');
+  let random = Math.random()
+  let n = calculatenumber()
+  let max = getMaxStatValue()
+  let min = getMinStatValue()
+  let quartiles = calculateQuartiles()
+
+
+  let expr = latex
+    .replace(/\\div/g, '/')
+    .replace(/\\operatorname\{Ran\}#/g, random)
+    .replace(/\\operatorname\{nPr\}\(([^)]+)\)/g, 'npr($1)')
+    .replace(/\\operatorname\{nCr\}\(([^)]+)\)/g, 'ncr($1)')
+    .replace(/\\operatorname\{sinh\}\(([^)]+)\)/g, 'sinh($1)')
+    .replace(/\\operatorname\{cosh\}\(([^)]+)\)/g, 'cosh($1)')
+    .replace(/\\operatorname\{tanh\}\(([^)]+)\)/g, 'tanh($1)')
+    .replace(/\\max/g, max)
+    .replace(/\\min/g, min)
+    .replace(/σ/g, stats.stdevp)
+    .replace(/\\operatorname\{sx\}/g, stats.stdev)
+    .replace(/Σx\^2/g, stats.sumsquares)
+    .replace(/Σx/g, stats.sum)
+    .replace(/Q₁/g, quartiles.Q1)
+    .replace(/Q₂/g, quartiles.Q2)
+    .replace(/Q₃/g, quartiles.Q3)
+    .replace(/\\operatorname\{mean\}/g, stats.mean)
+    .replace(/\\times/g, '*')
+    .replace(/\\left/g, '')
+    .replace(/\\right/g, '')
+    .replace(/\\operatorname\{abs\}/g, 'abs')
+    .replace(/\\operatorname\{Ans\}/g, answer)
+    .replace(/\\operatorname\{lcm\}/g, 'lcm')
+    .replace(/\\operatorname\{hcf\}/g, 'hcf')
+    .replace(/\\(sin|cos|tan)\^(2)\s*([a-zA-Z0-9]+)/g, '$1($3)^$2')
+    .replace(/\\(sin|cos|tan)\^(2)\(([^)]+)\)/g, '$1($3)^$2')
+    .replace(/\\sin\^\(-1\)\s*([a-zA-Z0-9]+)/g, 'asin($1)')
+    .replace(/\\cos\^\(-1\)\s*([a-zA-Z0-9]+)/g, 'acos($1)')
+    .replace(/\\tan\^\(-1\)\s*([a-zA-Z0-9]+)/g, 'atan($1)')
+    .replace(/\\sin\^\(-1\)\(([^)]+)\)/g, 'asin($1)')
+    .replace(/\\cos\^\(-1\)\(([^)]+)\)/g, 'acos($1)')
+    .replace(/\\tan\^\(-1\)\(([^)]+)\)/g, 'atan($1)')
+    .replace(/\\cos\(\^\)\{-1\}/g, 'acos')
+    .replace(/\\tan\(\^\)\{-1\}/g, 'atan')
+    .replace(/\\log_{([^}]+)}\(([^)]+)\)/g, 'log($2, $1)')
+    .replace(/\\frac{([^}]+)}{([^}]+)}/g, '($1)/($2)')
+    expr = replaceNestedSqrt(expr)
+    .replace(/\\cdot/g, '*')
+    .replace(/\\pi/g, 'pi')
+    .replace(/\\e/g, 'e')
+    .replace(/\\sin/g, 'sin')
+    .replace(/\\cos/g, 'cos')
+    .replace(/\\tan/g, 'tan')
+    .replace(/\\tan(\s*)\(?(\s*)90(\s*)\)?/g, '1/0')
+    .replace(/tan(\s*)\(?(\s*)90(\s*)\)?/g, '1/0')
+    .replace(/\\arcsin/g, 'asin')
+    .replace(/\\arccos/g, 'acos')
+    .replace(/\\arctan/g, 'atan')
+    .replace(/\\ln/g, 'log')
+    .replace(/\\log/g, 'log10')
+    .replace(/\\ /g, '')
+
+    .replace(/ｎ/g, n)
+
+  
+  // Manually handle nested fractions like \frac{1}{\frac{2}{3}}
+  // Recursively convert all LaTeX fractions to math.js format
+  function fixFractions(latex) {
+    // This regex matches the innermost \frac{...}{...}
+    const fracRegex = /\\frac\s*{([^{}]+|{[^{}]*})+}\s*{([^{}]+|{[^{}]*})+}/g;
+
+    // Helper to find matching braces for nested fractions
+    function findMatchingBrace(str, start) {
+      let depth = 0;
+      for (let i = start; i < str.length; i++) {
+        if (str[i] === '{') depth++;
+        if (str[i] === '}') {
+          depth--;
+          if (depth === 0) return i;
+        }
+      }
+      return -1;
+    }
+
+    // Recursive replacement
+    function replaceFrac(str) {
+      let i = 0;
+      while (i < str.length) {
+        if (str.slice(i, i + 5) === '\\frac') {
+          let numStart = str.indexOf('{', i + 5);
+          let numEnd = findMatchingBrace(str, numStart);
+          let denStart = str.indexOf('{', numEnd + 1);
+          let denEnd = findMatchingBrace(str, denStart);
+          if (numStart === -1 || numEnd === -1 || denStart === -1 || denEnd === -1) break;
+          // Recursively process numerator and denominator
+          let numerator = replaceFrac(str.slice(numStart + 1, numEnd));
+          let denominator = replaceFrac(str.slice(denStart + 1, denEnd));
+          // Replace the whole \frac{...}{...} with (numerator)/(denominator)
+          str = str.slice(0, i) + '(' + numerator + ')/(' + denominator + ')' + str.slice(denEnd + 1);
+          i += 1; // Move forward to avoid infinite loop
+        } else {
+          i++;
+        }
+      }
+      return str;
+    }
+
+    return replaceFrac(latex);
+  }  
+  // Manually handle nested exponents like x^{2^{3^{4}}}
+  function fixStackedExponents(str) {
+    let result = '';
+    let i = 0;
+    while (i < str.length) {
+      if (str[i] === '^' && str[i + 1] === '{') {
+        // Find matching closing brace
+        let braceCount = 1;
+        let j = i + 2;
+        while (j < str.length && braceCount > 0) {
+          if (str[j] === '{') braceCount++;
+          else if (str[j] === '}') braceCount--;
+          j++;
+        }
+        let base = result.match(/([a-zA-Z0-9\)\]]+)$/);
+        let baseStart = base ? result.lastIndexOf(base[1]) : result.length;
+        let baseStr = base ? base[1] : '';
+        let expStr = str.slice(i + 2, j - 1);
+        // Recursively process exponent
+        let fixedExp = fixStackedExponents(expStr);
+        result = result.slice(0, baseStart) + baseStr + '^(' + fixedExp + ')';
+        i = j;
+      } else {
+        result += str[i];
+        i++;
+      }
+    }
+    return result;
+  }
+  expr = fixStackedExponents(expr);
+  expr = fixMissingParentheses(expr);
+  return expr;
+}
+
+    function setAngleMode(mode) {
+      alert(`Angle mode set to ${mode}`);
+      // Your logic here
+      }
+    function MenuToggle() {
+      document.getElementById("fullScreenMenu").classList.toggle("hidden")
+      // Your logic here
+      }
+
+    function returntoCalculator() {
+      isVerifying = false;
+      isDefiningFunction = false;
+      exitStatisticsMode();
+      let savedLatex = localStorage.getItem('savedLatex');
+      mathField.latex(savedLatex);
+      isDefiningFunction = false;
+      }
+
+function moveCaretLeft(input) {
+  const pos = input.selectionStart;
+  const newPos = Math.max(pos - 1, 0); // Prevent negative index
+  input.setSelectionRange(newPos, newPos);
+  input.focus()
+  console.log('hahah')
+}
+
+function moveCaretRight(input) {
+  const pos = input.selectionStart;
+  const newPos = Math.min(pos + 1, input.value.length); // Prevent overflow
+  input.setSelectionRange(newPos, newPos);
+  input.focus()
+}
+
+function navigatestat(dir) { 
+
+let input = findstatinput();
+let start = input.selectionStart;
+let end = input.selectionEnd; 
+pos = input.value.indexOf('|');
+
+if (dir === 'Left'){
+  if (input.value.slice(pos - 3, pos) === "Ans") {
+movestat(dir)
+movestat(dir)
+movestat(dir)
+     }else if (input.value.slice(pos - 4, pos) === "log(") {
+movestat(dir)
+movestat(dir)
+movestat(dir)
+movestat(dir)
+     }else if (input.value.slice(pos - 3, pos) === "ln(") {
+movestat(dir)
+movestat(dir)
+movestat(dir)
+    } else {
+movestat(dir)
+ }
+}else if (dir === 'Right'){
+  if (input.value.slice(pos+1, pos+4) === "Ans") {
+     movestat(dir)
+     movestat(dir)
+     movestat(dir)
+     }else if (input.value.slice(pos+1, pos+5) === "log(") {
+       movestat(dir)
+       movestat(dir)
+       movestat(dir)
+       movestat(dir)
+     }else if (input.value.slice(pos+1, pos+4) === "ln(") {
+     // Selection exists, delete it  
+      movestat(dir)
+      movestat(dir)
+      movestat(dir)
+    } else {
+movestat(dir)
+ }
+} else {
+  movestat(dir)
+}
+}
+
+function movestat(dir) { 
+findstatinput().focus()
+
+if (
+    document.activeElement &&
+    (document.activeElement.classList.contains('stat-input') ||
+     document.activeElement.classList.contains('freq-input'))
+  ) {
+    const currentInput = findstatinput();
+    const currentCell = currentInput.closest('td');
+    const currentRow = currentInput.closest('tr');
+    const allRows = Array.from(document.querySelectorAll('#stats-tbody tr'));
+    const rowIndex = allRows.indexOf(currentRow);
+    const allInputsInRow = Array.from(currentRow.querySelectorAll('input'));
+    const colIndex = allInputsInRow.indexOf(currentInput);
+
+simulateTyping('');
+
+    if (dir === 'Down' && rowIndex < allRows.length - 1) {
+      // Move to the same column in the next row
+      const nextRowInputs = allRows[rowIndex + 1].querySelectorAll('input');
+      if (nextRowInputs[colIndex]) nextRowInputs[colIndex].focus();
+    } else if (dir === 'Up' && rowIndex > 0) {
+      // Move to the same column in the previous row
+      const prevRowInputs = allRows[rowIndex - 1].querySelectorAll('input');
+      if (prevRowInputs[colIndex]) prevRowInputs[colIndex].focus();
+    } else if (dir === 'Right'){
+      if (colIndex < allInputsInRow.length - 1 && currentInput.selectionStart === currentInput.value.length) {
+      // Move to the next input in the same row
+      allInputsInRow[colIndex + 1].focus();} else {moveCaretRight(currentInput)}
+    } else if (dir === 'Left') {
+      if (colIndex > 0 && currentInput.selectionStart === 0) {
+      // Move to the previous input in the same row
+      allInputsInRow[colIndex - 1].focus();} else {moveCaretLeft(currentInput)}
+    }
+    }
+    simulateTypingImmediate('|');
+  }
+  </script>
