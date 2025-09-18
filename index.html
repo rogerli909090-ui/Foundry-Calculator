@@ -2401,13 +2401,14 @@ function enterpressed() {
     if (isVerifying) {
       // Convert LaTeX to math.js expression
       let expr = convertLatexToMathJS(latex);
+      console.log("Converted expression:", expr);
 
       // Split at '=' to get left and right sides
-      let [left, right] = expr.split('=');
-      if (left && right) {
+      let [leftside, rightside] = expr.split('=');
+      if (leftside && rightside) {
         try {
           // Try symbolic simplification
-          let diff = math.simplify(`(${left}) - (${right})`);
+          let diff = math.simplify(`(${leftside}) - (${rightside})`);
           let isTrue = diff.equals(0);
 
           // If symbolic fails, try numeric check for some values
@@ -2416,8 +2417,8 @@ function enterpressed() {
             let numericTrue = true;
             for (let x = 1; x <= 3; x++) {
 
-              let l = parser.evaluate(wrapTrigForAngleMode(convertLatexToMathJS(left, {x})));
-              let r = parser.evaluate(wrapTrigForAngleMode(convertLatexToMathJS(right, {x})));
+              let l = parser.evaluate(HandleTan(wrapTrigForAngleMode(convertLatexToMathJS(leftside, {x}))));
+              let r = parser.evaluate(HandleTan(wrapTrigForAngleMode(convertLatexToMathJS(rightside, {x}))));
               if (Math.abs(l - r) > 1e-9) {
                 numericTrue = false;
                 break;
@@ -2425,7 +2426,7 @@ function enterpressed() {
             }
             isTrue = numericTrue;
           }
-
+          if (l === Infinity || r === Infinity){el.textContent = 'Cannot verify'; return}
           el.textContent = isTrue ? 'True' : 'False';
         } catch (err) {
           el.textContent = 'Cannot verify';
@@ -2954,8 +2955,31 @@ function replaceNestedSqrt(latex) {
   return replaceSqrt(latex);
 }
 
+function HandleTan(expr){
+  const node = math.parse(expr);
+
+  const transformed = node.transform(function (node) {
+    if (node.type === 'FunctionNode' && node.fn.name === 'tan') {
+      const arg = node.args[0];
+      const evaluated = math.evaluate(arg.toString());
+if (angleMode === 'radians'){
+      if (math.equal(evaluated, math.pi / 2)) {
+        return math.parse('1/0');
+      }} else {
+        if (evaluated === 90) {
+        return math.parse('1/0');}
+      }
+    }
+    return node;
+  });
+  return transformed.toString() // Outputs: 1/0 + 1/0 + 1/0
+}
+
 function convertLatexToMathJS(latex) {
+try {
 const stats = calculatestats()
+
+console.log(mathField.latex())
 
   latex = fixStackedExponents(latex);
   latex = fixFractions(latex);
@@ -2967,6 +2991,7 @@ const stats = calculatestats()
   let quartiles = calculateQuartiles()
 
   let expr = latex
+    .replace(/ｎ/g, n)
     .replace(/\\div/g, '/')
     .replace(/\\operatorname\{Ran\}#/g, random)
     .replace(/\\operatorname\{nPr\}\(([^)]+)\)/g, 'npr($1)')
@@ -3010,35 +3035,20 @@ const stats = calculatestats()
     .replace(/\\sin/g, 'sin')
     .replace(/\\cos/g, 'cos')
     .replace(/\\tan/g, 'tan')
-
-  const node = math.parse(expr);
-
-  const transformed = node.transform(function (node) {
-    if (node.type === 'FunctionNode' && node.fn.name === 'tan') {
-      const arg = node.args[0];
-      const evaluated = math.evaluate(arg.toString());
-if (angleMode === 'radians'){
-      if (math.equal(evaluated, math.pi / 2)) {
-        return math.parse('1/0');
-      }} else {
-        if (evaluated === 90) {
-        return math.parse('1/0');}
-      }
-    }
-    return node;
-  });
-
-  expr = transformed.toString() // Outputs: 1/0 + 1/0 + 1/0
-
     .replace(/\\arcsin/g, 'asin')
     .replace(/\\arccos/g, 'acos')
     .replace(/\\arctan/g, 'atan')
     .replace(/\\ln/g, 'log')
     .replace(/\\log/g, 'log10')
+
+if (Mode !== 4 && Mode !== 3){    
+expr = HandleTan(expr)
+}
+
+  expr = expr
     .replace(/\\ /g, '')
 
-    .replace(/ｎ/g, n)
-
+    console.log(expr)
   
   // Manually handle nested fractions like \frac{1}{\frac{2}{3}}
   // Recursively convert all LaTeX fractions to math.js format
@@ -3116,6 +3126,7 @@ if (angleMode === 'radians'){
   expr = fixStackedExponents(expr);
   expr = fixMissingParentheses(expr);
   return expr;
+}catch (error) {return Error}
 }
 
     function setAngleMode(mode) {
